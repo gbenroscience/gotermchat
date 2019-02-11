@@ -22,3 +22,12 @@ Now do <br> ``./termclient -username=Angel.Seraphim -h=127.0.0.1 -p=8080 -phone=
 `8080` is the port on which the server runs.
 
 Subsequently, you can chat without login. Enjoy!
+
+Modes of operation:
+
+The server by default braodcasts to every one connected to it.
+However, private messages can be sent even from the terminal by doing:
+
+```<private=080xxxxxx>``` where ```080xxxxxx``` is the phone number of the person you want to message.
+
+The next milestone is group-chat.
