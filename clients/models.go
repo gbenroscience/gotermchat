@@ -12,9 +12,18 @@ import (
 // Type constants for the Message struct
 const (
 	PrivateMessage = iota + 1
+	GroupMessage
 	BroadcastMessage
 	ExitMessage
 	HistoryRetriever
+)
+
+// Special Commands used to control messages
+const (
+	PrivateCommand = "<pr"
+	GroupCommand   = "<grp"
+	ExitCommand    = "@exit"
+	HistoryCommand = "<hist"
 )
 
 //User ...  Models user information

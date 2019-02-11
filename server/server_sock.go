@@ -133,24 +133,24 @@ command's syntax is correct.
 func parseCommand(cmd string) (string, string, bool) {
 
 	indexOfOpenTag := strings.Index(cmd, "<")
-	indexOfEquals := strings.Index(cmd, "=")
+	indexOfColon := strings.Index(cmd, ":")
 	indexOfCloseTag := strings.Index(cmd, ">")
 	indexOfSpace := strings.Index(cmd, " ")
 	countOpenTags := strings.Count(cmd, "<")
 	countCloseTags := strings.Count(cmd, ">")
-	countEquals := strings.Count(cmd, "=")
+	countColons := strings.Count(cmd, ":")
 	countOpenSpaces := strings.Count(cmd, " ")
-	conditions := (indexOfOpenTag != -1) && (indexOfCloseTag != -1) && (indexOfEquals != -1) && (indexOfSpace == -1) && (countOpenTags == 1) && (countCloseTags == 1) && (countEquals == 1) && (countOpenSpaces == 0)
+	conditions := (indexOfOpenTag != -1) && (indexOfCloseTag != -1) && (indexOfColon != -1) && (indexOfSpace == -1) && (countOpenTags == 1) && (countCloseTags == 1) && (countColons == 1) && (countOpenSpaces == 0)
 
-	arrangement := indexOfOpenTag < indexOfEquals && indexOfEquals < indexOfCloseTag
+	arrangement := indexOfOpenTag < indexOfColon && indexOfColon < indexOfCloseTag
 
 	validSyntax := conditions && arrangement
 
 	if !validSyntax {
 		return "", "", false
 	}
-	commandName := cmd[1:indexOfEquals]
-	commandVal := cmd[1+indexOfEquals : indexOfCloseTag]
+	commandName := cmd[1:indexOfColon]
+	commandVal := cmd[1+indexOfColon : indexOfCloseTag]
 
 	return commandName, commandVal, validSyntax
 

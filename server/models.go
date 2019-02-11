@@ -12,11 +12,21 @@ import (
 // Type constants for the Message struct
 const (
 	PrivateMessage = iota + 1
+	GroupMessage
 	BroadcastMessage
 	ExitMessage
 	HistoryRetriever
 )
 
+// Special Commands used to control messages
+const (
+	PrivateCommand = "<pr"
+	GroupCommand   = "<grp"
+	ExitCommand    = "@exit"
+	HistoryCommand = "<hist"
+)
+
+// Server Constants
 const (
 	MongoURL       = "localhost:27017"
 	ChannelBufSize = 100
@@ -39,6 +49,13 @@ type Client struct {
 	doneCh  chan bool
 }
 
+//Group A group chat model
+type Group struct {
+	ID      string
+	Name    string
+	members []*string
+}
+
 // Message ... Models information for the message payload
 type Message struct {
 	Msg        string    `json:"msg"`
@@ -54,6 +71,7 @@ type Server struct {
 	pattern   string
 	messages  []*Message
 	clients   map[string]*Client
+	groups    map[string]*Group
 	addCh     chan *Client
 	delCh     chan *Client
 	sendAllCh chan *Message
