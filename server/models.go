@@ -16,14 +16,19 @@ const (
 	BroadcastMessage
 	ExitMessage
 	HistoryRetriever
+	GroupAdd
 )
 
 // Special Commands used to control messages
 const (
-	PrivateCommand = "<pr"
-	GroupCommand   = "<grp"
-	ExitCommand    = "@exit"
-	HistoryCommand = "<hist"
+	PrivateCommand           = "<pr"
+	GroupCommand             = "<grp"
+	ExitCommand              = "@exit"
+	HistoryCommand           = "<hist"
+	GroupAddCommand          = "<grpadd" //The admin adds a user
+	GroupMakeCommand         = "<grpmk"  // Creates a group
+	GroupDelCommand          = "<grpdel" // Deletes a group
+	GroupRemoveMemberCommand = "<grpprg" // Removes a member from a group
 )
 
 // Server Constants

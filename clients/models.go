@@ -24,6 +24,11 @@ const (
 	GroupCommand   = "<grp"
 	ExitCommand    = "@exit"
 	HistoryCommand = "<hist"
+
+	GroupAddCommand          = "<grpadd" //The admin adds a user
+	GroupMakeCommand         = "<grpmk"  // Creates a group
+	GroupDelCommand          = "<grpdel" // Deletes a group
+	GroupRemoveMemberCommand = "<grpprg" // Removes a member from a group
 )
 
 //User ...  Models user information
