@@ -17,8 +17,8 @@ On the client systems which you would like to chat from, also go to gotermchat/c
 
 Now do <br> ``./termclient -username=Angel.Seraphim -h=127.0.0.1 -p=8080 -phone=0906678888 reg``.<br> (Use your phone number!)
 
-The `reg` is for a first time user. It ensures that the server sees you as a new user and so, registers you.
-The `127.0.0.1` is the ip address of the server.
-The `8080` is the port on which the server runs.
+`reg` is for a first time user. It ensures that the server sees you as a new user and so, registers you.
+`127.0.0.1` is the ip address of the server.
+`8080` is the port on which the server runs.
 
 Subsequently, you can chat without login. Enjoy!
