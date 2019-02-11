@@ -1,10 +1,9 @@
 package clients
 
 import (
-	"math/rand"
 	"time"
 
-	"github.com/gbenroscience/gotermchat/server/utils"
+	"github.com/gbenroscience/gotermchat/clients/utils"
 	"github.com/gorilla/websocket"
 )
 
@@ -15,24 +14,53 @@ const (
 	BroadcastMessage
 	ExitMessage
 	HistoryRetriever
+	NotificationErr
+	NotificationSucc
+	NotificationWarning
+	NotificationInfo
 
 	GroupAdd
 	GroupMake
 	GroupDel
 	GroupRemoveMember
+	GroupList
+	GroupsForList
 )
 
 // Special Commands used to control messages
 const (
-	PrivateCommand = "<pr"   // Sends a private message: e.g <pr:08165779034> message body...
-	GroupCommand   = "<grp"  // Sends a group message: e.g <grp:grpName> message body...
-	ExitCommand    = "@exit" // Tells the server that this user is disconnecting from chat
-	HistoryCommand = "<hist" // Loads the last ...n... messages. <hist:n>
+	PrivateCommand      = "<pr"   // Sends a private message: e.g <pr:08165779034> message body...
+	GroupMessageCommand = "<grp"  // Sends a group message: e.g <grp:grpName> message body...
+	ExitCommand         = "@exit" // Tells the server that this user is disconnecting from chat
+	HistoryCommand      = "<hist" // Loads the last ...n... messages. <hist:n>
 
-	GroupAddCommand          = "<grpadd" //The admin adds a user: e.g <grpadd:08165779034:grpName>
-	GroupMakeCommand         = "<grpmk"  // Creates a group: e.g  <grpmk:grpName>
-	GroupDelCommand          = "<grpdel" // Deletes a group: e.g  <grpdel:grpName>
-	GroupRemoveMemberCommand = "<grpprg" // Removes a member from a group: e.g <grpprg:08165779034:grpName>
+	GroupAddCommand          = "<grpadd"     //The admin adds a user: e.g <grpadd:08165779034:grpName>
+	GroupMakeCommand         = "<grpmk"      // Creates a group: e.g  <grpmk:grpName>
+	GroupDelCommand          = "<grpdel"     // Deletes a group: e.g  <grpdel:grpName>
+	GroupRemoveMemberCommand = "<grprem"     // Removes a member from a group: e.g <grpprg:08165779034:grpName>
+	GroupListCommand         = "<lsgrps"     // Lists all your groups: e.g <grpls> or <grpls:0816577904> to list all groups created
+	GroupsForListCommand     = "<lsgrps-for" // Lists all groups created by 0816577904: <grpls:0816577904>
+
+)
+
+//The syntax for using the commands
+const (
+	PrivateCommandSyntax      = "<pr:08165779034>  message..."
+	GroupMessageCommandSyntax = "<grp:grpName> message... Sends a message to a group of users"
+	ExitCommandSyntax         = "Type @exit. Disconnects you from the server normally"
+	HistoryCommandSyntax      = " <hist:n> Loads n messages from your message history"
+
+	GroupMakeCommandSyntax         = "<grpmk:grpName> Creates a new group...e.g <grpmk:Days of our lives>"
+	GroupAddCommandSyntax          = "<grpadd:08165779034:grpName> Adds the user with the given phone number to the group"
+	GroupDelCommandSyntax          = "<grpdel:grpName> Deletes a group"
+	GroupRemoveMemberCommandSyntax = "<grprem:08165779034:grpName> Removes a member from a group"
+	GroupListCommandSyntax         = "<lsgrps> Lists all your groups"
+	GroupsForListCommandSyntax     = "<lsgrps-for:08165779034> Lists all groups created by 0816577904"
+)
+
+// Defines more constants
+const (
+	AppName = "GoTermyChat"
 )
 
 //User ...  Models user information
@@ -73,8 +101,6 @@ type Config struct {
 }
 
 func createMessage(msg string, timeT time.Time, phone string, senderName string) *Message {
-
-	rand.Seed(time.Now().Unix())
 
 	message := new(Message)
 

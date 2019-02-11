@@ -3,6 +3,7 @@ package server
 import (
 	"log"
 	"strings"
+	"time"
 
 	"errors"
 
@@ -35,7 +36,7 @@ func NewServer(pattern string) *Server {
 
 //makeGroup Creates a group from a group command of the format: <grpmk:grpName>
 //It returns the group name, a uid for the group or error if any
-func (s *Server) makeGroup(cmd string) (Group, error) {
+func (s *Server) makeGroup(cmd string, phone string) (Group, error) {
 
 	startIndex := strings.Index(cmd, "<")
 	endIndex := strings.Index(cmd, ">") + 1
@@ -43,9 +44,10 @@ func (s *Server) makeGroup(cmd string) (Group, error) {
 
 	if validSyntax {
 		grp := &Group{
-			ID:      utils.GenUlid(),
-			Name:    commandVal,
-			members: []*string{},
+			ID:         utils.GenUlid(),
+			Name:       commandVal,
+			AdminPhone: phone,
+			members:    []*string{},
 		}
 
 		return *grp, nil
@@ -56,8 +58,31 @@ func (s *Server) makeGroup(cmd string) (Group, error) {
 	return Group{}, err
 }
 
-func createErrorMessage(errMsg string) Message {
-	var msg Message = Message{}
+func createErrorMessage(errMsg string, timeT time.Time) *Message {
+
+	message := new(Message)
+
+	message.Phone = AppPhone
+	message.Time = timeT
+	message.Msg = errMsg
+	message.SenderName = AppName
+
+	message.ID = utils.GenUlid()
+	message.Type = NotificationErr
+	return message
+}
+func createSuccessMessage(succMsg string, timeT time.Time) *Message {
+
+	message := new(Message)
+
+	message.Phone = AppPhone
+	message.Time = timeT
+	message.Msg = succMsg
+	message.SenderName = AppName
+
+	message.ID = utils.GenUlid()
+	message.Type = NotificationSucc
+	return message
 }
 
 // Add ... Adds a new client
@@ -125,6 +150,7 @@ func (s *Server) StartListening() {
 
 		// broadcast message for all clients
 		case msg := <-s.sendAllCh:
+			msg.CreateOrUpdateMessage()
 			log.Println("Send all-->>", msg)
 			s.messages = append(s.messages, msg)
 			if msg.Type == BroadcastMessage {
@@ -133,7 +159,7 @@ func (s *Server) StartListening() {
 			} else if msg.Type == PrivateMessage {
 				log.Println("Private message detected:", msg)
 				text := msg.Msg
-				//<private=08176765555>
+				//<pr=08176765555>
 
 				startIndex := strings.Index(text, "<")
 				endIndex := strings.Index(text, ">") + 1
@@ -145,19 +171,29 @@ func (s *Server) StartListening() {
 					destClient.Write(msg)
 				}
 			} else if msg.Type == GroupMake {
+				//<grpmk:grpName>
 				log.Println("Group create command detected:", msg)
 
 				text := msg.Msg
-				//<grpmk:grpName>
+
+				adminPhone := msg.Phone
 				startIndex := strings.Index(text, "<")
 				endIndex := strings.Index(text, ">") + 1
 				cmd := text[startIndex:endIndex]
-				grp, err := s.makeGroup(cmd)
+				grp, err := s.makeGroup(cmd, adminPhone)
 
+				admin := s.clients[adminPhone]
 				if err != nil {
-					adminPhone := msg.Phone
-					admin := s.clients[adminPhone]
-					admin.Write(err.Error())
+					admin.Write(createErrorMessage(err.Error(), time.Now()))
+				} else {
+					s.groups[grp.ID] = &grp
+					admin.Write(createSuccessMessage("The group, `"+grp.Name+"` was created successfully. \nStart adding members with"+
+						GroupAddCommandSyntax+"\nSend a message to the group with: "+
+						GroupMessageCommandSyntax+"\n Delete the group with: "+
+						GroupDelCommandSyntax+"\n Remove a member with: "+
+						GroupRemoveMemberCommandSyntax+"\n List the groups you created with: "+
+						GroupListCommandSyntax+"\n List the groups someone created with: "+
+						GroupsForListCommandSyntax, time.Now()))
 				}
 			}
 
