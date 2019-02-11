@@ -1,11 +1,10 @@
 package clients
 
 import (
-	"bytes"
 	"math/rand"
-	"strconv"
 	"time"
 
+	"github.com/gbenroscience/gotermchat/server/utils"
 	"github.com/gorilla/websocket"
 )
 
@@ -16,19 +15,24 @@ const (
 	BroadcastMessage
 	ExitMessage
 	HistoryRetriever
+
+	GroupAdd
+	GroupMake
+	GroupDel
+	GroupRemoveMember
 )
 
 // Special Commands used to control messages
 const (
-	PrivateCommand = "<pr"
-	GroupCommand   = "<grp"
-	ExitCommand    = "@exit"
-	HistoryCommand = "<hist"
+	PrivateCommand = "<pr"   // Sends a private message: e.g <pr:08165779034> message body...
+	GroupCommand   = "<grp"  // Sends a group message: e.g <grp:grpName> message body...
+	ExitCommand    = "@exit" // Tells the server that this user is disconnecting from chat
+	HistoryCommand = "<hist" // Loads the last ...n... messages. <hist:n>
 
-	GroupAddCommand          = "<grpadd" //The admin adds a user
-	GroupMakeCommand         = "<grpmk"  // Creates a group
-	GroupDelCommand          = "<grpdel" // Deletes a group
-	GroupRemoveMemberCommand = "<grpprg" // Removes a member from a group
+	GroupAddCommand          = "<grpadd" //The admin adds a user: e.g <grpadd:08165779034:grpName>
+	GroupMakeCommand         = "<grpmk"  // Creates a group: e.g  <grpmk:grpName>
+	GroupDelCommand          = "<grpdel" // Deletes a group: e.g  <grpdel:grpName>
+	GroupRemoveMemberCommand = "<grpprg" // Removes a member from a group: e.g <grpprg:08165779034:grpName>
 )
 
 //User ...  Models user information
@@ -79,14 +83,7 @@ func createMessage(msg string, timeT time.Time, phone string, senderName string)
 	message.Msg = msg
 	message.SenderName = senderName
 
-	var buffer bytes.Buffer
-
-	buffer.WriteString(phone)
-	buffer.WriteString("-")
-	randomVal := 10000 + rand.Intn(400000)
-	buffer.WriteString(strconv.Itoa(randomVal))
-
-	message.ID = buffer.String()
+	message.ID = utils.GenUlid()
 	message.Type = BroadcastMessage
 	return message
 }

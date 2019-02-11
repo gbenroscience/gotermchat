@@ -3,12 +3,17 @@ package server
 import (
 	"log"
 	"strings"
+
+	"errors"
+
+	"github.com/gbenroscience/gotermchat/server/utils"
 )
 
 // NewServer ... Create a new chat server
 func NewServer(pattern string) *Server {
 	messages := []*Message{}
 	clients := make(map[string]*Client)
+	groups := make(map[string]*Group)
 	addCh := make(chan *Client)
 	delCh := make(chan *Client)
 	sendAllCh := make(chan *Message)
@@ -19,12 +24,40 @@ func NewServer(pattern string) *Server {
 		pattern,
 		messages,
 		clients,
+		groups,
 		addCh,
 		delCh,
 		sendAllCh,
 		doneCh,
 		errCh,
 	}
+}
+
+//makeGroup Creates a group from a group command of the format: <grpmk:grpName>
+//It returns the group name, a uid for the group or error if any
+func (s *Server) makeGroup(cmd string) (Group, error) {
+
+	startIndex := strings.Index(cmd, "<")
+	endIndex := strings.Index(cmd, ">") + 1
+	_, commandVal, validSyntax := parseCommand(cmd[startIndex:endIndex])
+
+	if validSyntax {
+		grp := &Group{
+			ID:      utils.GenUlid(),
+			Name:    commandVal,
+			members: []*string{},
+		}
+
+		return *grp, nil
+	}
+
+	err := errors.New("The syntax of your command i.e `" + cmd + "` is wrong!\n Please use `<grpmk:grpName>` to create a new group")
+
+	return Group{}, err
+}
+
+func createErrorMessage(errMsg string) Message {
+	var msg Message = Message{}
 }
 
 // Add ... Adds a new client
@@ -111,7 +144,21 @@ func (s *Server) StartListening() {
 				if destClient != nil {
 					destClient.Write(msg)
 				}
+			} else if msg.Type == GroupMake {
+				log.Println("Group create command detected:", msg)
 
+				text := msg.Msg
+				//<grpmk:grpName>
+				startIndex := strings.Index(text, "<")
+				endIndex := strings.Index(text, ">") + 1
+				cmd := text[startIndex:endIndex]
+				grp, err := s.makeGroup(cmd)
+
+				if err != nil {
+					adminPhone := msg.Phone
+					admin := s.clients[adminPhone]
+					admin.Write(err.Error())
+				}
 			}
 
 		case err := <-s.ErrCh:
@@ -128,6 +175,8 @@ The name of the command is the first item returned.
 The values of the command is the second item returned
 The third item is a boolean value indicating if or not the
 command's syntax is correct.
+
+Parses commands of type <cmd:val> e.g <grpmk:grpName>, <pr:0816577904>
 */
 
 func parseCommand(cmd string) (string, string, bool) {

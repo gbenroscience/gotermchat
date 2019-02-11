@@ -16,19 +16,24 @@ const (
 	BroadcastMessage
 	ExitMessage
 	HistoryRetriever
+
 	GroupAdd
+	GroupMake
+	GroupDel
+	GroupRemoveMember
 )
 
 // Special Commands used to control messages
 const (
-	PrivateCommand           = "<pr"
-	GroupCommand             = "<grp"
-	ExitCommand              = "@exit"
-	HistoryCommand           = "<hist"
-	GroupAddCommand          = "<grpadd" //The admin adds a user
-	GroupMakeCommand         = "<grpmk"  // Creates a group
-	GroupDelCommand          = "<grpdel" // Deletes a group
-	GroupRemoveMemberCommand = "<grpprg" // Removes a member from a group
+	PrivateCommand = "<pr"   // Sends a private message: e.g <pr:08165779034> message body...
+	GroupCommand   = "<grp"  // Sends a group message: e.g <grp:grpName> message body...
+	ExitCommand    = "@exit" // Tells the server that this user is disconnecting from chat
+	HistoryCommand = "<hist" // Loads the last ...n... messages. <hist:n>
+
+	GroupAddCommand          = "<grpadd" //The admin adds a user: e.g <grpadd:08165779034:grpName>
+	GroupMakeCommand         = "<grpmk"  // Creates a group: e.g  <grpmk:grpName>
+	GroupDelCommand          = "<grpdel" // Deletes a group: e.g  <grpdel:grpName>
+	GroupRemoveMemberCommand = "<grpprg" // Removes a member from a group: e.g <grpprg:08165779034:grpName>
 )
 
 // Server Constants
