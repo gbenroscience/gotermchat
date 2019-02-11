@@ -15,7 +15,7 @@ Note the ip address of your system and then
 
 On the client systems which you would like to chat from, also go to gotermchat/cmd/termclient. Do ``go build again``.
 
-Now do  ``./termclient -username=Angel.Seraphim -h=127.0.0.1 -p=8080 -phone=0906678888 reg``. (Use your phone number!)
+Now do <br> ``./termclient -username=Angel.Seraphim -h=127.0.0.1 -p=8080 -phone=0906678888 reg``.<br> (Use your phone number!)
 
 The `reg` is for a first time user. It ensures that the server sees you as a new user and so, registers you.
 The `127.0.0.1` is the ip address of the server.
