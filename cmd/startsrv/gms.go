@@ -11,6 +11,7 @@ import (
 	"flag"
 
 	serv "github.com/gbenroscience/gotermchat/server"
+	"github.com/gbenroscience/gotermchat/server/utils"
 	"github.com/gorilla/websocket"
 )
 
@@ -18,6 +19,15 @@ import (
 var server *serv.Server
 
 func main() {
+
+	levComp := &utils.StringCompare{
+		Source: "Gbemiro",
+		Target: "Awele",
+	}
+
+	dist := levComp.ComputeDistance()
+
+	fmt.Println("distance: ", dist)
 
 	var port int
 
