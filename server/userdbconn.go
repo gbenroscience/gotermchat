@@ -81,5 +81,5 @@ func DeleteUser(id string) bool {
 	c := session.DB("UserService").C("Users")
 	err = c.RemoveId(id)
 
-	return true
+	return err == nil
 }

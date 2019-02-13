@@ -90,7 +90,7 @@ type Group struct {
 	ID         string
 	Name       string
 	AdminPhone string
-	members    []*string
+	Members    []*string
 }
 
 // Message ... Models information for the message payload
@@ -101,6 +101,7 @@ type Message struct {
 	Phone      string    `json:"phone"`
 	SenderName string    `json:"sender_name"`
 	Type       int       `json:"msg_type"`
+	GroupID    string    `json:"group_id"`
 }
 
 // Server ... The chat server

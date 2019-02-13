@@ -88,6 +88,7 @@ type Message struct {
 	Phone      string    `json:"phone"`
 	SenderName string    `json:"sender_name"`
 	Type       int       `json:"msg_type"`
+	GroupID    string    `json:"group_id"`
 }
 
 // Config ... Models information used to start the client connection

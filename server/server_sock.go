@@ -43,11 +43,16 @@ func (s *Server) makeGroup(cmd string, phone string) (Group, error) {
 	_, commandVal, validSyntax := parseCommand(cmd[startIndex:endIndex])
 
 	if validSyntax {
+
 		grp := &Group{
 			ID:         utils.GenUlid(),
 			Name:       commandVal,
 			AdminPhone: phone,
-			members:    []*string{},
+			Members:    []*string{},
+		}
+
+		if s.userHasGroupByName(phone, grp.Name) {
+			return Group{}, errors.New("Error: The Group, " + grp.Name + " is already amongst your groups!")
 		}
 
 		return *grp, nil
@@ -83,6 +88,33 @@ func createSuccessMessage(succMsg string, timeT time.Time) *Message {
 	message.ID = utils.GenUlid()
 	message.Type = NotificationSucc
 	return message
+}
+
+//listGroups - Lists all Groups that belong to a certain user
+func (s *Server) listGroups(phone string) *[]Group {
+
+	groups := make([]Group, 0)
+
+	for _, v := range s.groups {
+		if v.AdminPhone == phone {
+			groups = append(groups, *v)
+		}
+	}
+
+	return &groups
+}
+
+//userHasGroupByName - Checks that no group of the user having the phone number has the supplied name.
+// phone is the phone number of the group creator and grpName is the name to check for
+func (s *Server) userHasGroupByName(phone string, grpName string) bool {
+
+	for _, v := range s.groups {
+		if v.Name == grpName {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Add ... Adds a new client
@@ -187,6 +219,35 @@ func (s *Server) StartListening() {
 					admin.Write(createErrorMessage(err.Error(), time.Now()))
 				} else {
 					s.groups[grp.ID] = &grp
+					grp.CreateOrUpdateGroup()
+					admin.Write(createSuccessMessage("The group, `"+grp.Name+"` was created successfully. \nStart adding members with"+
+						GroupAddCommandSyntax+"\nSend a message to the group with: "+
+						GroupMessageCommandSyntax+"\n Delete the group with: "+
+						GroupDelCommandSyntax+"\n Remove a member with: "+
+						GroupRemoveMemberCommandSyntax+"\n List the groups you created with: "+
+						GroupListCommandSyntax+"\n List the groups someone created with: "+
+						GroupsForListCommandSyntax, time.Now()))
+				}
+			} else if msg.Type == GroupAdd {
+				//<grpadd:08165779034:grpName>
+				log.Println("Group create command detected:", msg)
+
+				text := msg.Msg
+
+				s.groups[]
+
+				adminPhone := msg.Phone
+				startIndex := strings.Index(text, "<")
+				endIndex := strings.Index(text, ">") + 1
+				cmd := text[startIndex:endIndex]
+				grp, err := s.makeGroup(cmd, adminPhone)
+
+				admin := s.clients[adminPhone]
+				if err != nil {
+					admin.Write(createErrorMessage(err.Error(), time.Now()))
+				} else {
+					s.groups[grp.ID] = &grp
+					grp.CreateOrUpdateGroup()
 					admin.Write(createSuccessMessage("The group, `"+grp.Name+"` was created successfully. \nStart adding members with"+
 						GroupAddCommandSyntax+"\nSend a message to the group with: "+
 						GroupMessageCommandSyntax+"\n Delete the group with: "+

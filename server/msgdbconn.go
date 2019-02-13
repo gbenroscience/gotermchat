@@ -61,7 +61,7 @@ func ShowMessage(id string) Message {
 
 	c := session.DB("MessageService").C("Messages")
 	Message := Message{}
-	err = c.Find(bson.M{"name": id}).One(&Message)
+	err = c.Find(bson.M{"id": id}).One(&Message)
 
 	return Message
 }

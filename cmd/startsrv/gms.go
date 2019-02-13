@@ -25,7 +25,7 @@ func main() {
 		Target: "Awele",
 	}
 
-	dist := levComp.ComputeDistance()
+	dist := levComp.IsSimilarTo(70)
 
 	fmt.Println("distance: ", dist)
 
