@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gbenroscience/gscanner/scanner"
 	"github.com/gorilla/websocket"
 )
 
@@ -163,7 +165,7 @@ func (client *Client) acceptInput() {
 			break
 		} else if strings.HasPrefix(chatMsg, HistoryCommand) { //<hist=20>
 			message.Type = HistoryRetriever
-			fmt.Println("Not yet implemented! This will allow you to view past messages on the command line.\n The format is <hist=number>\n e.g\n <hist=12> This will fetch 12 messages from your message history.")
+			fmt.Println("Not yet implemented! This will allow you to view past messages on the command line.\n The format is " + HistoryCommandSyntax + "\n e.g\n <hist=12> This will fetch 12 messages from your message history.")
 			continue
 		} else if strings.HasPrefix(chatMsg, PrivateCommand) { // syntax is: <pr=08176765555>
 
@@ -175,7 +177,51 @@ func (client *Client) acceptInput() {
 			if syntax {
 				message.Type = PrivateMessage
 			} else {
-				fmt.Println("Please check the syntax to use near: ", cmd, " Message not sent! \nThe syntax is <private=phone-number>. \nIt allows you to send a private message to the user that has that phone number.")
+				fmt.Println("Please check the syntax to use near: ", cmd, " Message not sent! \nThe syntax is "+PrivateCommandSyntax+". \nIt allows you to send a private message to the user that has that phone number.")
+				continue
+			}
+
+		} else if strings.HasPrefix(chatMsg, GroupMakeCommand) { //<hist=20>
+
+			startIndex := strings.Index(chatMsg, "<")
+			endIndex := strings.Index(chatMsg, ">") + 1
+			cmd := chatMsg[startIndex:endIndex]
+
+			_, _, _, err := client.parse3ArgsCommand(cmd)
+
+			if err != nil {
+				fmt.Println(err.Error() + " To create new groups, the format is " + GroupMakeCommandSyntax + "\n")
+				continue
+			} else {
+				message.Type = GroupMake
+			}
+
+		} else if strings.HasPrefix(chatMsg, GroupAddCommand) {
+
+			startIndex := strings.Index(chatMsg, "<")
+			endIndex := strings.Index(chatMsg, ">") + 1
+			cmd := chatMsg[startIndex:endIndex]
+
+			_, _, _, err := client.parse3ArgsCommand(cmd)
+
+			if err != nil {
+				fmt.Println(err.Error() + " To add a user to your group, the format is " + GroupAddCommandSyntax + "\n")
+				continue
+			} else {
+				message.Type = GroupAdd
+			}
+
+		} else if strings.HasPrefix(chatMsg, GroupMessageCommand) { // syntax is: <grp=grpAlias>
+
+			startIndex := strings.Index(chatMsg, "<")
+			endIndex := strings.Index(chatMsg, ">") + 1
+			cmd := chatMsg[startIndex:endIndex]
+			_, _, syntax := client.parseCommand(cmd)
+
+			if syntax {
+				message.Type = GroupMessage
+			} else {
+				fmt.Println("Please check the syntax to use near: ", cmd, " Message not sent! \nThe syntax is "+GroupMessageCommandSyntax+". \nIt allows you to send a message to users in the specified group")
 				continue
 			}
 
@@ -204,7 +250,7 @@ func printMessage(msg Message) {
 
 	fmt.Println(msg.Time.Format("Mon Jan _2 15:04:05 2006"))
 	fmt.Println()
-	fmt.Println(msg.Msg, "\n")
+	fmt.Println(msg.Msg + "\n")
 	fmt.Println()
 	fmt.Println(msg.Phone)
 	fmt.Println("_________________________________________________________")
@@ -240,5 +286,48 @@ func (client *Client) parseCommand(cmd string) (string, string, bool) {
 	commandVal := cmd[1+indexOfColon : indexOfCloseTag]
 
 	return commandName, commandVal, validSyntax
+
+}
+
+//parse3ArgsCommand Parses commands of the form: <grpadd:08165779034:grpName>
+func (client *Client) parse3ArgsCommand(cmd string) (string, string, string, error) {
+
+	startIndex := strings.Index(cmd, "<")
+	endIndex := strings.Index(cmd, ">") + 1
+
+	scannerEngine := &scanner.GScanner{
+		Input:                 cmd[startIndex:endIndex],
+		Tokens:                []string{"<", ">", ":"},
+		IncludeTokensInOutput: false,
+	}
+
+	output := scannerEngine.Scan()
+
+	if len(output) == 3 {
+
+		command := output[0]
+
+		if command == GroupMakeCommand[1:len(GroupMakeCommand)] {
+			grpName := strings.TrimSpace(output[1])
+			alias := strings.TrimSpace(output[2])
+
+			return command, grpName, alias, nil
+		}
+		if command == GroupAddCommand[1:len(GroupAddCommand)] {
+			memPhone := strings.TrimSpace(output[1])
+			alias := strings.TrimSpace(output[2])
+			return command, memPhone, alias, nil
+		}
+		if command == GroupRemoveMemberCommand[1:len(GroupRemoveMemberCommand)] {
+			memPhone := strings.TrimSpace(output[1])
+			alias := strings.TrimSpace(output[2])
+			return command, memPhone, alias, nil
+		}
+
+		return "", "", "", errors.New("Invalid command")
+
+	}
+
+	return "", "", "", errors.New("Invalid Command. Did you mean ")
 
 }

@@ -7,6 +7,9 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+//GroupAliasMaxLen - The max characters that the Group alias can have
+const GroupAliasMaxLen = 15
+
 // Type constants for the Message struct
 const (
 	PrivateMessage = iota + 1
@@ -25,12 +28,13 @@ const (
 	GroupRemoveMember
 	GroupList
 	GroupsForList
+	ListCmds
 )
 
 // Special Commands used to control messages
 const (
 	PrivateCommand      = "<pr"   // Sends a private message: e.g <pr:08165779034> message body...
-	GroupMessageCommand = "<grp"  // Sends a group message: e.g <grp:grpName> message body...
+	GroupMessageCommand = "<grp"  // Sends a group message: e.g <grp:grpAlias> message body...
 	ExitCommand         = "@exit" // Tells the server that this user is disconnecting from chat
 	HistoryCommand      = "<hist" // Loads the last ...n... messages. <hist:n>
 
@@ -40,13 +44,13 @@ const (
 	GroupRemoveMemberCommand = "<grprem"     // Removes a member from a group: e.g <grpprg:08165779034:grpName>
 	GroupListCommand         = "<lsgrps"     // Lists all your groups: e.g <grpls> or <grpls:0816577904> to list all groups created
 	GroupsForListCommand     = "<lsgrps-for" // Lists all groups created by 0816577904: <grpls:0816577904>
-
+	ListCommands             = "@cmd"        // lists all available commands
 )
 
 //The syntax for using the commands
 const (
 	PrivateCommandSyntax      = "<pr:08165779034>  message..."
-	GroupMessageCommandSyntax = "<grp:grpName> message... Sends a message to a group of users"
+	GroupMessageCommandSyntax = "<grp:grpAlias> message... Sends a message to a group of users. The grpAlias is the alias given to the group by the admin."
 	ExitCommandSyntax         = "Type @exit. Disconnects you from the server normally"
 	HistoryCommandSyntax      = " <hist:n> Loads n messages from your message history"
 
@@ -55,7 +59,8 @@ const (
 	GroupDelCommandSyntax          = "<grpdel:grpName> Deletes a group"
 	GroupRemoveMemberCommandSyntax = "<grprem:08165779034:grpName> Removes a member from a group"
 	GroupListCommandSyntax         = "<lsgrps> Lists all your groups"
-	GroupsForListCommandSyntax     = "<lsgrps-for:08165779034> Lists all groups created by 0816577904"
+	GroupsForListCommandSyntax     = "<lsgrps-for:08165779034> Lists all groups created by 08165779034"
+	ListCommandsSyntax             = "@cmd. Lists all commands usable here"
 )
 
 // Defines more constants

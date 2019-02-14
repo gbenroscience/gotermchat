@@ -48,7 +48,7 @@ func (u *User) CreateOrUpdateUser() bool {
 }
 
 // ShowUser - Returns the User in the Users Collection with name equal to the id parameter (id == name)
-func ShowUser(id string) (User, error) {
+func ShowUser(phone string) (User, error) {
 	session, err := mgo.Dial(MongoURL)
 	if err != nil {
 		log.Println("Could not connect to mongo: ", err.Error())
@@ -61,7 +61,7 @@ func ShowUser(id string) (User, error) {
 
 	c := session.DB("UserService").C("Users")
 	user := User{}
-	err = c.Find(bson.M{"phone": id}).One(&user)
+	err = c.Find(bson.M{"phone": phone}).One(&user)
 
 	return user, err
 }

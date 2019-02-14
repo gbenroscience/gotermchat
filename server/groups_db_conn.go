@@ -27,7 +27,7 @@ func GetGroups() []Group {
 }
 
 // CreateOrUpdateGroup - Creates or Updates (Upsert) the Group in the Groups Collection with id parameter
-func (msg *Group) CreateOrUpdateGroup() bool {
+func (grp *Group) CreateOrUpdateGroup() bool {
 	session, err := mgo.Dial(MongoURL)
 	if err != nil {
 		log.Println("Could not connect to mongo: ", err.Error())
@@ -39,7 +39,7 @@ func (msg *Group) CreateOrUpdateGroup() bool {
 	session.SetMode(mgo.Monotonic, true)
 
 	c := session.DB("GroupsService").C("Groups")
-	_, err = c.UpsertId(msg.ID, msg)
+	_, err = c.UpsertId(grp.ID, grp)
 	if err != nil {
 		log.Println("Error creating Group: ", err.Error())
 		return false
