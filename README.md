@@ -25,7 +25,7 @@ Subsequently, you can chat without login. Enjoy!
 
 Modes of operation:
 
-The server by default braodcasts to every one connected to it.
+The server by default broadcasts to every one connected to it.
 However, private messages can be sent even from the terminal by doing:
 
 ```<pr:080xxxxxx>``` where ```080xxxxxx``` is the phone number of the person you want to message.
