@@ -20,15 +20,6 @@ var server *serv.Server
 
 func main() {
 
-	levComp := &utils.StringCompare{
-		Source: "Gbemiro",
-		Target: "Awele",
-	}
-
-	dist := levComp.IsSimilarTo(70)
-
-	fmt.Println("distance: ", dist)
-
 	var port int
 
 	flag.IntVar(&port, "p", 8080, "The application server will be started on this port")
