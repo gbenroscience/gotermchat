@@ -36,18 +36,14 @@ func NewServer(pattern string) *Server {
 	}
 }
 
-//makeGroup Creates a group from a group command of the format: <grpmk:grpName>
-//It returns the group name, a uid for the group or error if any
+// makeGroup Creates a group from a group command of the format: <grpmk:grpName>
+// It returns the group name, a uid for the group or error if any
 func (s *Server) makeGroup(cmd string, phone string) (Group, error) {
 
 	startIndex := strings.Index(cmd, "<")
 	endIndex := strings.Index(cmd, ">") + 1
 
-	scannerEngine := &scanner.GScanner{
-		Input:                 cmd[startIndex:endIndex],
-		Tokens:                []string{"<", ">", ":"},
-		IncludeTokensInOutput: false,
-	}
+	scannerEngine := scanner.NewScanner(cmd[startIndex:endIndex], []string{"<", ">", ":"}, false)
 
 	output := scannerEngine.Scan()
 
@@ -87,18 +83,14 @@ func (s *Server) makeGroup(cmd string, phone string) (Group, error) {
 	return Group{}, err
 }
 
-//makeGroup Creates a group from a group command of the format: <grpmk:grpName>
-//It returns the group name, a uid for the group or error if any
+// makeGroup Creates a group from a group command of the format: <grpmk:grpName>
+// It returns the group name, a uid for the group or error if any
 func (s *Server) addUserToGroup(cmd string, phone string) (Group, string, error) {
 	//<grpadd:08165779034:grpName>
 	startIndex := strings.Index(cmd, "<")
 	endIndex := strings.Index(cmd, ">") + 1
 
-	scannerEngine := &scanner.GScanner{
-		Input:                 cmd[startIndex:endIndex],
-		Tokens:                []string{"<", ">", ":"},
-		IncludeTokensInOutput: false,
-	}
+	scannerEngine := scanner.NewScanner(cmd[startIndex:endIndex], []string{"<", ">", ":"}, false)
 
 	output := scannerEngine.Scan()
 
@@ -177,7 +169,7 @@ func createSuccessMessage(succMsg string, timeT time.Time) *Message {
 	return message
 }
 
-//listGroups - Lists all Groups that belong to a certain user
+// listGroups - Lists all Groups that belong to a certain user
 func (s *Server) listGroups(phone string) *[]Group {
 
 	groups := make([]Group, 0)
@@ -191,7 +183,7 @@ func (s *Server) listGroups(phone string) *[]Group {
 	return &groups
 }
 
-//userHasGroupByName - Checks that no group of the user having the phone number has the supplied name.
+// userHasGroupByName - Checks that no group of the user having the phone number has the supplied name.
 // phone is the phone number of the group creator and grpName is the name to check for
 func (s *Server) userHasGroupByName(phone string, grpNameOrAlias string) bool {
 
@@ -207,7 +199,7 @@ func (s *Server) userHasGroupByName(phone string, grpNameOrAlias string) bool {
 	return false
 }
 
-//findGroupByNameOrAlias - Checks that no group of the user having the phone number has the supplied name.
+// findGroupByNameOrAlias - Checks that no group of the user having the phone number has the supplied name.
 // phone is the phone number of the group creator and grpNameOrAlias is the name or alias to check for
 func (s *Server) findGroupByNameOrAlias(phone string, grpNameOrAlias string) (*Group, error) {
 

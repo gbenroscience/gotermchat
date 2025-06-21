@@ -60,7 +60,7 @@ func connect(conf *Config) {
 
 }
 
-//StartConn -- Starts the connection.
+// StartConn -- Starts the connection.
 func StartConn(conf *Config) {
 
 	conf.URLBuilder = func() string {
@@ -257,7 +257,8 @@ func printMessage(msg Message) {
 
 }
 
-/**
+/*
+*
 The name of the command is the first item returned.
 The values of the command is the second item returned
 The third item is a boolean value indicating if or not the
@@ -289,17 +290,13 @@ func (client *Client) parseCommand(cmd string) (string, string, bool) {
 
 }
 
-//parse3ArgsCommand Parses commands of the form: <grpadd:08165779034:grpName>
+// parse3ArgsCommand Parses commands of the form: <grpadd:08165779034:grpName>
 func (client *Client) parse3ArgsCommand(cmd string) (string, string, string, error) {
 
 	startIndex := strings.Index(cmd, "<")
 	endIndex := strings.Index(cmd, ">") + 1
 
-	scannerEngine := &scanner.GScanner{
-		Input:                 cmd[startIndex:endIndex],
-		Tokens:                []string{"<", ">", ":"},
-		IncludeTokensInOutput: false,
-	}
+	scannerEngine := scanner.NewScanner(cmd[startIndex:endIndex], []string{"<", ">", ":"}, false)
 
 	output := scannerEngine.Scan()
 

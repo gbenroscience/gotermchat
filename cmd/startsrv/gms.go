@@ -11,7 +11,6 @@ import (
 	"flag"
 
 	serv "github.com/gbenroscience/gotermchat/server"
-	"github.com/gbenroscience/gotermchat/server/utils"
 	"github.com/gorilla/websocket"
 )
 
