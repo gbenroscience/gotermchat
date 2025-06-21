@@ -10,7 +10,7 @@ import (
 	"bytes"
 	"flag"
 
-	serv "github.com/gbenroscience/gotermchat/server"
+	serv "com.itis.apps/gotermchat/server"
 	"github.com/gorilla/websocket"
 )
 

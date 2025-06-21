@@ -8,7 +8,7 @@ import (
 
 	"errors"
 
-	"github.com/gbenroscience/gotermchat/server/utils"
+	"com.itis.apps/gotermchat/server/utils"
 	"github.com/gbenroscience/gscanner/scanner"
 )
 

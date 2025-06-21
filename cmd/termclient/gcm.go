@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 
-	"github.com/gbenroscience/gotermchat/clients"
-	clientele "github.com/gbenroscience/gotermchat/clients"
+	"com.itis.apps/gotermchat/clients"
+	clientele "com.itis.apps/gotermchat/clients"
 )
 
 // StartConnection ... Initializes the connection to the server

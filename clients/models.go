@@ -3,11 +3,11 @@ package clients
 import (
 	"time"
 
-	"github.com/gbenroscience/gotermchat/clients/utils"
+	"com.itis.apps/gotermchat/clients/utils"
 	"github.com/gorilla/websocket"
 )
 
-//GroupAliasMaxLen - The max characters that the Group alias can have
+// GroupAliasMaxLen - The max characters that the Group alias can have
 const GroupAliasMaxLen = 15
 
 // Type constants for the Message struct
@@ -47,7 +47,7 @@ const (
 	ListCommands             = "@cmd"        // lists all available commands
 )
 
-//The syntax for using the commands
+// The syntax for using the commands
 const (
 	PrivateCommandSyntax      = "<pr:08165779034>  message..."
 	GroupMessageCommandSyntax = "<grp:grpAlias> message... Sends a message to a group of users. The grpAlias is the alias given to the group by the admin."
@@ -68,7 +68,7 @@ const (
 	AppName = "GoTermyChat"
 )
 
-//User ...  Models user information
+// User ...  Models user information
 type User struct {
 	Name     string    `json:"name"`
 	RegTime  time.Time `json:"regTime"`
