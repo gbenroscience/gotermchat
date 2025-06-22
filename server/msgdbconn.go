@@ -1,85 +1,90 @@
 package server
 
 import (
+	"context"
 	"log"
 
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	"com.itis.apps/gotermchat/database"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+type MessageMgr struct {
+	conn *database.MongoDB
+}
+
+func NewMessageMgr(pool *database.MongoDB) *MessageMgr {
+	mgr := new(MessageMgr)
+	mgr.conn = pool
+	return mgr
+}
+
 // GetMessages - Returns all the Message in the Messages Collection
-func GetMessages() []Message {
-	session, err := mgo.Dial(MongoURL)
+func (mm *MessageMgr) GetMessages() []Message {
+
+	// Select database and collection
+	collection := mm.conn.GetCollection("MessageService", "Messages")
+	var messages []Message
+	cursor, err := collection.Find(context.Background(), bson.M{})
 	if err != nil {
-		log.Println("Could not connect to mongo: ", err.Error())
-		return nil
+		return messages
 	}
-	defer session.Close()
+	defer cursor.Close(context.Background())
 
-	// Optional. Switch the session to a monotonic behavior.
-	session.SetMode(mgo.Monotonic, true)
+	for cursor.Next(context.Background()) {
+		var message Message
+		if err := cursor.Decode(&message); err != nil {
+			log.Fatal(err)
+		}
+		messages = append(messages, message)
+	}
 
-	c := session.DB("MessageService").C("Messages")
-	var Messages []Message
-	err = c.Find(bson.M{}).All(&Messages)
+	// Check for any errors during iteration
+	if err := cursor.Err(); err != nil {
+		return messages
+	}
 
-	return Messages
+	return messages
+
 }
 
 // CreateOrUpdateMessage - Creates or Updates (Upsert) the Message in the Messages Collection with id parameter
-func (msg *Message) CreateOrUpdateMessage() bool {
-	session, err := mgo.Dial(MongoURL)
-	if err != nil {
-		log.Println("Could not connect to mongo: ", err.Error())
-		return false
-	}
-	defer session.Close()
+func (mm *MessageMgr) CreateOrUpdateMessage(msg Message) bool {
 
-	// Optional. Switch the session to a monotonic behavior.
-	session.SetMode(mgo.Monotonic, true)
+	// Select database and collection
+	collection := mm.conn.GetCollection("MessageService", "Messages")
+	opts := options.Update().SetUpsert(true)
 
-	c := session.DB("MessageService").C("Messages")
-	_, err = c.UpsertId(msg.ID, msg)
+	_, err := collection.UpdateByID(context.Background(), msg.ID, msg, opts)
 	if err != nil {
 		log.Println("Error creating Message: ", err.Error())
 		return false
 	}
+
 	return true
 }
 
 // ShowMessage - Returns the Message in the Messages Collection with name equal to the id parameter (id == name)
-func ShowMessage(id string) Message {
-	session, err := mgo.Dial(MongoURL)
-	if err != nil {
-		log.Println("Could not connect to mongo: ", err.Error())
-		return Message{}
-	}
-	defer session.Close()
+func (mm *MessageMgr) ShowMessage(id string) Message {
+	// Select database and collection
+	collection := mm.conn.GetCollection("MessageService", "Messages")
+	filter := bson.M{"id": id}
 
-	// Optional. Switch the session to a monotonic behavior.
-	session.SetMode(mgo.Monotonic, true)
+	var message Message
 
-	c := session.DB("MessageService").C("Messages")
-	Message := Message{}
-	err = c.Find(bson.M{"id": id}).One(&Message)
+	collection.FindOne(context.Background(), filter).Decode(&message)
 
-	return Message
+	return message
 }
 
 // DeleteMessage - Deletes the Message in the Messages Collection with name equal to the id parameter (id == name)
-func DeleteMessage(id string) bool {
-	session, err := mgo.Dial(MongoURL)
-	if err != nil {
-		log.Println("Could not connect to mongo: ", err.Error())
-		return false
-	}
-	defer session.Close()
+func (mm *MessageMgr) DeleteMessage(id string) bool {
 
-	// Optional. Switch the session to a monotonic behavior.
-	session.SetMode(mgo.Monotonic, true)
+	// Select database and collection
+	collection := mm.conn.GetCollection("MessageService", "Messages")
 
-	c := session.DB("MessageService").C("Messages")
-	err = c.RemoveId(id)
+	filter := bson.D{{"id", id}}
 
-	return true
+	res, err := collection.DeleteOne(context.Background(), filter)
+	return err == nil && res.DeletedCount > 0
 }

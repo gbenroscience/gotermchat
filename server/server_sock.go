@@ -8,13 +8,17 @@ import (
 
 	"errors"
 
-	"com.itis.apps/gotermchat/server/utils"
+	comd "com.itis.apps/gotermchat/cmd"
+	"com.itis.apps/gotermchat/database"
 	"github.com/gbenroscience/gscanner/scanner"
 )
 
 // NewServer ... Create a new chat server
-func NewServer(pattern string) *Server {
-	messages := GetMessages()
+func NewServer(pattern string, pool *database.MongoDB) *Server {
+	messageMgr := NewMessageMgr(pool)
+	userMgr := NewUserMgr(pool)
+	groupMgr := NewGroupMgr(pool)
+	messages := messageMgr.GetMessages()
 	clients := make(map[string]*Client)
 	groups := make(map[string]*Group)
 	addCh := make(chan *Client)
@@ -25,6 +29,9 @@ func NewServer(pattern string) *Server {
 
 	return &Server{
 		pattern,
+		messageMgr,
+		userMgr,
+		groupMgr,
 		messages,
 		clients,
 		groups,
@@ -52,7 +59,7 @@ func (s *Server) makeGroup(cmd string, phone string) (Group, error) {
 		grpName := strings.TrimSpace(output[1])
 		alias := strings.TrimSpace(output[2])
 
-		if command != GroupMakeCommand[1:len(GroupMakeCommand)] {
+		if command != GroupMakeCommand[1:] {
 			return Group{}, errors.New("Bad command for making group. Please use the syntax: " + GroupMakeCommand)
 		}
 		if len(alias) > GroupAliasMaxLen {
@@ -63,7 +70,7 @@ func (s *Server) makeGroup(cmd string, phone string) (Group, error) {
 		}
 
 		grp := &Group{
-			ID:         utils.GenUlid(),
+			ID:         comd.GenUlid(),
 			Name:       grpName,
 			Alias:      alias,
 			AdminPhone: phone,
@@ -100,7 +107,7 @@ func (s *Server) addUserToGroup(cmd string, phone string) (Group, string, error)
 		memPhone := output[1]
 		grpName := output[2]
 
-		if command == GroupAddCommand[1:len(GroupAddCommand)] {
+		if command == GroupAddCommand[1:] {
 
 			if s.userHasGroupByName(phone, grpName) {
 				grp, err := s.findGroupByNameOrAlias(phone, grpName)
@@ -116,20 +123,20 @@ func (s *Server) addUserToGroup(cmd string, phone string) (Group, string, error)
 					}
 
 					grp.Members = append(grp.Members, memPhone)
-					grp.CreateOrUpdateGroup()
+					s.groupMgr.CreateOrUpdateGroup(*grp)
 					return *grp, memPhone, nil
 
 				}
 				//user either not online or not registered at all
 
-				_, err = ShowUser(memPhone)
+				_, err = s.userMgr.ShowUser(memPhone)
 
 				if err != nil {
 					return Group{}, memPhone, errors.New("This user: " + memPhone + " is not on " + AppName)
 				}
 
 				grp.Members = append(grp.Members, memPhone)
-				grp.CreateOrUpdateGroup()
+				s.groupMgr.CreateOrUpdateGroup(*grp)
 
 			}
 			return Group{}, memPhone, errors.New("Sorry, you do not have any group called: " + grpName)
@@ -151,7 +158,7 @@ func createErrorMessage(errMsg string, timeT time.Time) *Message {
 	message.Msg = errMsg
 	message.SenderName = AppName
 
-	message.ID = utils.GenUlid()
+	message.ID = comd.GenUlid()
 	message.Type = NotificationErr
 	return message
 }
@@ -164,7 +171,7 @@ func createSuccessMessage(succMsg string, timeT time.Time) *Message {
 	message.Msg = succMsg
 	message.SenderName = AppName
 
-	message.ID = utils.GenUlid()
+	message.ID = comd.GenUlid()
 	message.Type = NotificationSucc
 	return message
 }
@@ -280,7 +287,7 @@ func (s *Server) StartListening() {
 
 			//Handle messages
 		case msg := <-s.sendAllCh:
-			msg.CreateOrUpdateMessage()
+			s.messageMgr.CreateOrUpdateMessage(*msg)
 			log.Println("Send all-->>", msg)
 			s.messages = append(s.messages, *msg)
 			if msg.Type == BroadcastMessage {
@@ -331,7 +338,7 @@ func (s *Server) StartListening() {
 					admin.Write(createErrorMessage(err.Error(), time.Now()))
 				} else {
 					s.groups[grp.ID] = &grp
-					grp.CreateOrUpdateGroup()
+					s.groupMgr.CreateOrUpdateGroup(grp)
 					admin.Write(createSuccessMessage("The group, `"+grp.Name+"` was created successfully. \nStart adding members with"+
 						GroupAddCommandSyntax+"\nSend a message to the group with: "+
 						GroupMessageCommandSyntax+"\n Delete the group with: "+
@@ -370,6 +377,10 @@ func (s *Server) StartListening() {
 			return
 		}
 	}
+}
+
+func (s Server) Shutdown() {
+	s.messageMgr.conn.Close()
 }
 
 /**

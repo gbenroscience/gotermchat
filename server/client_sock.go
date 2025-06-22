@@ -10,7 +10,7 @@ import (
 )
 
 // NewClient ... Creates a new Client
-func NewClient(phone string, ws *websocket.Conn, server *Server) *Client {
+func NewClient(user *User, ws *websocket.Conn, server *Server) *Client {
 
 	if ws == nil {
 		panic("ws cannot be nil")
@@ -22,18 +22,12 @@ func NewClient(phone string, ws *websocket.Conn, server *Server) *Client {
 
 	ch := make(chan *Message, ChannelBufSize)
 	doneCh := make(chan bool)
-	user, err := ShowUser(phone)
-	if err != nil {
-		log.Println("BAD CODE HERE")
-		return &Client{}
-	}
-
-	return &Client{&user, ws, server, ch, doneCh}
+	return &Client{user, ws, server, ch, doneCh}
 }
 
 func (c *Client) Write(msg *Message) {
 	select {
-	case c.MsgCHAN <- msg:
+	case c.MsgChan <- msg:
 	default:
 		c.server.Del(c)
 		err := fmt.Errorf("client %s is disconnected", c.Member.Phone)
@@ -59,7 +53,7 @@ func (c *Client) listenWrite() {
 		select {
 
 		// send message to the client
-		case msg := <-c.MsgCHAN:
+		case msg := <-c.MsgChan:
 			log.Println("Send:", msg.Msg)
 
 			byteArr, err := json.Marshal(msg)

@@ -49,7 +49,7 @@ const (
 
 )
 
-//The syntax for using the commands
+// The syntax for using the commands
 const (
 	PrivateCommandSyntax      = "<pr:08165779034>  message..."
 	GroupMessageCommandSyntax = "<grp:grpAlias> message... Sends a message to a group of users. The grpAlias is the alias given to the group by the admin."
@@ -67,10 +67,11 @@ const (
 
 // Server Constants
 const (
-	AppPhone       = "080-GTC-000"
-	AppName        = "GoTermyChat"
-	MongoURL       = "localhost:27017"
-	ChannelBufSize = 100
+	AppPhone           = "080-GTC-000"
+	AppName            = "GoTermyChat"
+	MongoURL           = "mongodb://localhost:27017"
+	ExchangeKeysSecret = "Hast thou known not? hast thou.." // must be 32 bytes
+	ChannelBufSize     = 100
 )
 
 // User ... Models information for the User
@@ -86,11 +87,11 @@ type Client struct {
 	Member  *User `json:"member"`
 	Conn    *websocket.Conn
 	server  *Server
-	MsgCHAN chan *Message
+	MsgChan chan *Message
 	doneCh  chan bool
 }
 
-//Group A group chat model
+// Group A group chat model
 type Group struct {
 	ID         string   //ID - The uique ID for the group on the platform
 	Name       string   //Name - A human friendly name for the group
@@ -112,15 +113,18 @@ type Message struct {
 
 // Server ... The chat server
 type Server struct {
-	pattern   string
-	messages  []Message
-	clients   map[string]*Client
-	groups    map[string]*Group
-	addCh     chan *Client
-	delCh     chan *Client
-	sendAllCh chan *Message
-	doneCh    chan bool
-	ErrCh     chan error
+	pattern    string
+	messageMgr *MessageMgr
+	userMgr    *UserMgr
+	groupMgr   *GroupMgr
+	messages   []Message
+	clients    map[string]*Client
+	groups     map[string]*Group
+	addCh      chan *Client
+	delCh      chan *Client
+	sendAllCh  chan *Message
+	doneCh     chan bool
+	ErrCh      chan error
 }
 
 func createMessage(msg string, timeT time.Time, phone string, senderName string) {
@@ -139,4 +143,16 @@ func createMessage(msg string, timeT time.Time, phone string, senderName string)
 	buffer.WriteString(strconv.Itoa(randomVal))
 
 	message.ID = buffer.String()
+}
+
+func (s Server) GetUserManager() *UserMgr {
+	return s.userMgr
+}
+
+func (s Server) GetMessageManager() *MessageMgr {
+	return s.messageMgr
+}
+
+func (s Server) GetGroupManager() *GroupMgr {
+	return s.groupMgr
 }

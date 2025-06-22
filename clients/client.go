@@ -5,15 +5,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
+	"com.itis.apps/gotermchat/cmd"
 	"github.com/gbenroscience/gscanner/scanner"
 	"github.com/gorilla/websocket"
 )
@@ -38,7 +37,7 @@ func connect(conf *Config) {
 		fmt.Println(err)
 		log.Fatal("Please try again. Tips: Check your network connections and your credentials.")
 	}
-	fmt.Println("Connected to ", url, ":\n\n")
+	fmt.Println("Connected to ", url)
 	fmt.Println("-------------------------------------------------------------------------")
 	fmt.Println(" Welcome to GoTermyChat Chat")
 	fmt.Println("-------------------------------------------------------------------------")
@@ -63,6 +62,22 @@ func connect(conf *Config) {
 // StartConn -- Starts the connection.
 func StartConn(conf *Config) {
 
+	k, err := cmd.NewKryptik(ExchangeKeysSecret, cmd.ModeCBC) //base64.RawURLEncoding.DecodeString(base64Str)
+	if err != nil {
+		fmt.Println("...Error loading password encryptor!")
+		return
+	}
+
+	jsonData, err := cmd.DumpStruct(conf)
+	if err != nil {
+		fmt.Printf("...Error dumping config struct to JSON: %v\n", err)
+		return
+	}
+	data, err := k.Encrypt(jsonData)
+	if err != nil {
+		fmt.Printf("...Error encrypting config: %v\n", err)
+		return
+	}
 	conf.URLBuilder = func() string {
 
 		var buffer bytes.Buffer
@@ -71,19 +86,8 @@ func StartConn(conf *Config) {
 		buffer.WriteString(conf.Host)
 		buffer.WriteString(":")
 		buffer.WriteString(conf.Port)
-		buffer.WriteString("/ws/imaxine-that?name=")
-
-		buffer.WriteString(conf.Username)
-		buffer.WriteString("&phone=")
-		buffer.WriteString(conf.Phone)
-
-		buffer.WriteString("&reg=")
-
-		if len(flag.Args()) == 1 && flag.Arg(0) == "reg" {
-			buffer.WriteString(strconv.FormatBool(true))
-		} else {
-			buffer.WriteString(strconv.FormatBool(false))
-		}
+		buffer.WriteString("/ws/imaxine-that?data=")
+		buffer.WriteString(data)
 
 		url := buffer.String()
 

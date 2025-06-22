@@ -1,85 +1,90 @@
 package server
 
 import (
+	"context"
 	"log"
 
-	"gopkg.in/mgo.v2"
+	"com.itis.apps/gotermchat/database"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"gopkg.in/mgo.v2/bson"
 )
 
+type GroupMgr struct {
+	conn *database.MongoDB
+}
+
+func NewGroupMgr(pool *database.MongoDB) *GroupMgr {
+	mgr := new(GroupMgr)
+	mgr.conn = pool
+	return mgr
+}
+
 // GetGroups - Returns all the Groups in the Groups Collection
-func GetGroups() []Group {
-	session, err := mgo.Dial(MongoURL)
+func (gm *GroupMgr) GetGroups() ([]Group, error) {
+
+	// Select database and collection
+	collection := gm.conn.GetCollection("GroupsService", "Groups")
+	var groups []Group
+	cursor, err := collection.Find(context.Background(), bson.M{})
 	if err != nil {
-		log.Println("Could not connect to mongo: ", err.Error())
-		return nil
+		return nil, err
 	}
-	defer session.Close()
+	defer cursor.Close(context.Background())
 
-	// Optional. Switch the session to a monotonic behavior.
-	session.SetMode(mgo.Monotonic, true)
+	for cursor.Next(context.Background()) {
+		var group Group
+		if err := cursor.Decode(&group); err != nil {
+			log.Fatal(err)
+		}
+		groups = append(groups, group)
+	}
 
-	c := session.DB("GroupsService").C("Groups")
-	var Groups []Group
-	err = c.Find(bson.M{}).All(&Groups)
+	// Check for any errors during iteration
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
 
-	return Groups
+	return groups, nil
+
 }
 
 // CreateOrUpdateGroup - Creates or Updates (Upsert) the Group in the Groups Collection with id parameter
-func (grp *Group) CreateOrUpdateGroup() bool {
-	session, err := mgo.Dial(MongoURL)
-	if err != nil {
-		log.Println("Could not connect to mongo: ", err.Error())
-		return false
-	}
-	defer session.Close()
+func (gm *GroupMgr) CreateOrUpdateGroup(grp Group) bool {
 
-	// Optional. Switch the session to a monotonic behavior.
-	session.SetMode(mgo.Monotonic, true)
+	// Select database and collection
+	collection := gm.conn.GetCollection("GroupsService", "Groups")
+	opts := options.Update().SetUpsert(true)
 
-	c := session.DB("GroupsService").C("Groups")
-	_, err = c.UpsertId(grp.ID, grp)
+	_, err := collection.UpdateByID(context.Background(), grp.ID, grp, opts)
 	if err != nil {
 		log.Println("Error creating Group: ", err.Error())
 		return false
 	}
+
 	return true
 }
 
 // ShowGroup - Returns the Group in the Groups Collection with name equal to the id parameter (id == name)
-func ShowGroup(id string) Group {
-	session, err := mgo.Dial(MongoURL)
-	if err != nil {
-		log.Println("Could not connect to mongo: ", err.Error())
-		return Group{}
-	}
-	defer session.Close()
+func (gm *GroupMgr) ShowGroup(id string) Group {
+	// Select database and collection
+	collection := gm.conn.GetCollection("GroupsService", "Groups")
+	filter := bson.M{"id": id}
 
-	// Optional. Switch the session to a monotonic behavior.
-	session.SetMode(mgo.Monotonic, true)
+	var group Group
 
-	c := session.DB("GroupsService").C("Groups")
-	group := Group{}
-	err = c.Find(bson.M{"id": id}).One(&group)
+	collection.FindOne(context.Background(), filter).Decode(&group)
 
 	return group
 }
 
-// DeleteGroup - Deletes the Group in the Groups Collection with name equal to the id parameter (id == name)
-func DeleteGroup(id string) bool {
-	session, err := mgo.Dial(MongoURL)
-	if err != nil {
-		log.Println("Could not connect to mongo: ", err.Error())
-		return false
-	}
-	defer session.Close()
+// DeleteGroup - Deletes the Group in the Groups Collection with same id-value as the id parameter
+func (gm *GroupMgr) DeleteGroup(id string) bool {
 
-	// Optional. Switch the session to a monotonic behavior.
-	session.SetMode(mgo.Monotonic, true)
+	// Select database and collection
+	collection := gm.conn.GetCollection("GroupsService", "Groups")
 
-	c := session.DB("GroupsService").C("Groups")
-	err = c.RemoveId(id)
+	filter := bson.D{{"id", id}}
 
-	return true
+	res, err := collection.DeleteOne(context.Background(), filter)
+	return err == nil && res.DeletedCount > 0
 }

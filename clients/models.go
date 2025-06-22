@@ -3,7 +3,7 @@ package clients
 import (
 	"time"
 
-	"com.itis.apps/gotermchat/clients/utils"
+	"com.itis.apps/gotermchat/cmd"
 	"github.com/gorilla/websocket"
 )
 
@@ -65,7 +65,8 @@ const (
 
 // Defines more constants
 const (
-	AppName = "GoTermyChat"
+	AppName            = "GoTermyChat"
+	ExchangeKeysSecret = "Hast thou known not? hast thou.." // must be 32 bytes
 )
 
 // User ...  Models user information
@@ -98,12 +99,13 @@ type Message struct {
 
 // Config ... Models information used to start the client connection
 type Config struct {
-	Phone      string
-	Host       string
-	Username   string
-	Password   string
-	Port       string
-	URLBuilder func() string
+	Phone      string        `json:"phone"`
+	Host       string        `json:"host"`
+	Username   string        `json:"user_name"`
+	Password   string        `json:"password"`
+	Port       string        `json:"port"`
+	Reg        bool          `json:"reg"`
+	URLBuilder func() string `json:"-"`
 }
 
 func createMessage(msg string, timeT time.Time, phone string, senderName string) *Message {
@@ -115,7 +117,7 @@ func createMessage(msg string, timeT time.Time, phone string, senderName string)
 	message.Msg = msg
 	message.SenderName = senderName
 
-	message.ID = utils.GenUlid()
+	message.ID = cmd.GenUlid()
 	message.Type = BroadcastMessage
 	return message
 }
