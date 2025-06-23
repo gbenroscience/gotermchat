@@ -76,6 +76,7 @@ const (
 
 // User ... Models information for the User
 type User struct {
+	ID       string    `bson:"_id" json:"id"`
 	Name     string    `json:"name"`
 	RegTime  time.Time `json:"regTime"`
 	Phone    string    `json:"phone"`
@@ -93,22 +94,22 @@ type Client struct {
 
 // Group A group chat model
 type Group struct {
-	ID         string   //ID - The uique ID for the group on the platform
-	Name       string   //Name - A human friendly name for the group
-	Alias      string   //Alias - A shorter name for the group... Must be unique within the group
-	AdminPhone string   //AdminPhone - The phone number of the group's admin
-	Members    []string //Members - pointer reference to array storing the phone numbers of all group members
+	ID         string   `bson:"_id" json:"id"`                  //ID - The unique ID for the group on the platform
+	Name       string   `bson:"name" json:"name"`               //Name - A human friendly name for the group
+	Alias      string   `bson:"alias" json:"alias"`             //Alias - A shorter name for the group... Must be unique within the group
+	AdminPhone string   `bson:"admin_phone" json:"admin_phone"` //AdminPhone - The phone number of the group's admin
+	Members    []string `bson:"members" json:"members"`         //Members - pointer reference to array storing the phone numbers of all group members
 }
 
 // Message ... Models information for the message payload
 type Message struct {
-	Msg        string    `json:"msg"`
-	ID         string    `json:"id"`
-	Time       time.Time `json:"time"`
-	Phone      string    `json:"phone"`
-	SenderName string    `json:"sender_name"`
-	Type       int       `json:"msg_type"`
-	GroupID    string    `json:"group_id"`
+	Msg        string    `bson:"msg" json:"msg"`
+	ID         string    `bson:"_id" json:"id"`
+	Time       time.Time `bson:"time" json:"time"`
+	Phone      string    `bson:"phone" json:"phone"`
+	SenderName string    `bson:"sender_name"  json:"sender_name"`
+	Type       int       `bson:"msg_type" json:"msg_type"`
+	GroupID    string    `bson:"group_id" json:"group_id"`
 }
 
 // Server ... The chat server

@@ -1,3 +1,4 @@
 # SpecStory explanation file
 /.what-is-this.md
 *.exe
+cmd/startsrv/gms.exe
