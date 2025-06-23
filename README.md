@@ -13,9 +13,9 @@ Then do: <br><code>./startsrv -p 8080</code> </code>. (Where 8080 is the port yo
 
 Note the ip address of your system and then
 
-On the client systems which you would like to chat from, also go to gotermchat/cmd/termclient. Do ``go build again``.
+On the client systems which you would like to chat from, also go to gotermchat/cmd/termclient. Do ``go build`` again.
 
-Now do <br> ``./termclient -u=Angel.Seraphim -h=127.0.0.1 -p=8080 -ph=0906678888 reg``.<br> (Use your phone number!)
+Now do <br> ``./termclient -u=angelos -h=127.0.0.1 -p=8080 -ph=0906678888 reg``.<br> (Use your phone number!)
 
 `reg` is for a first time user. It ensures that the server sees you as a new user and so, registers you.
 `127.0.0.1` is the ip address of the server.

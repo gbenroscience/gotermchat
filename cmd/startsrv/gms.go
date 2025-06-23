@@ -20,14 +20,14 @@ import (
 // SERVER ... The Server
 var server *serv.Server
 
-// Config ... Models information used to start the client connection
+// ClientConfig ... Models information used to start the client connection
 type ClientConfig struct {
-	Phone    string
-	Host     string
-	Username string
-	Password string
-	Port     string
-	Reg      bool
+	Phone    string `json:"phone"`
+	Host     string `json:"host"`
+	Username string `json:"user_name"`
+	Password string `json:"password"`
+	Port     string `json:"port"`
+	Reg      bool   `json:"reg"`
 }
 
 func main() {
@@ -149,12 +149,14 @@ func onConnect(ws *websocket.Conn, req *http.Request, response http.ResponseWrit
 		return
 	}
 
-	pwd, err := k.Decrypt(config.Password)
+	pwd, err := k.Decrypt(config.Password) //from client terminal app
 	if err != nil {
 		ws.WriteMessage(websocket.TextMessage, []byte("...Error decrypting password!..."+fmt.Errorf("...err: %v\n", err).Error()))
 		ws.Close()
 		return
 	}
+
+	fmt.Println("pwd: ", pwd)
 
 	if len(pwd) < 6 {
 		ws.WriteMessage(websocket.TextMessage, []byte("...Decrypted Password too short!"))
@@ -194,7 +196,14 @@ func onConnect(ws *websocket.Conn, req *http.Request, response http.ResponseWrit
 				return
 			}
 
-			if user.Password != config.Password { //do passwords match?
+			pswd, err := k.Decrypt(user.Password)
+			if err != nil {
+				ws.WriteMessage(websocket.TextMessage, []byte("...Error decrypting password from db!..."+fmt.Errorf("...err: %v\n", err).Error()))
+				ws.Close()
+				return
+			}
+
+			if pswd != pwd { //do passwords match?
 				ws.WriteMessage(websocket.TextMessage, []byte("...Login Failed. Incorrect credentials."))
 				ws.Close()
 				return
@@ -210,8 +219,14 @@ func onConnect(ws *websocket.Conn, req *http.Request, response http.ResponseWrit
 				ws.Close()
 				return
 			}
-			if user.Password != config.Password {
-				ws.WriteMessage(websocket.TextMessage, []byte("...Login Failed!! Incorrect  credentials."))
+			pswd, err := k.Decrypt(user.Password)
+			if err != nil {
+				ws.WriteMessage(websocket.TextMessage, []byte("...Error decrypting password from db!..."+fmt.Errorf("...err: %v\n", err).Error()))
+				ws.Close()
+				return
+			}
+			if pswd != pwd {
+				ws.WriteMessage(websocket.TextMessage, []byte(".................Login Failed!! Incorrect  credentials."))
 				ws.Close()
 				return
 			}

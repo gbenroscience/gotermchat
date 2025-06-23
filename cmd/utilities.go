@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"log"
 	"math/rand"
 	"strconv"
 	"time"
@@ -39,6 +40,11 @@ func GenUlid() string {
 
 func DumpStruct(b interface{}) (string, error) {
 	s, err := json.MarshalIndent(b, "", "\t")
+	if err != nil {
+		log.Printf("Error dumping struct: %v\n", err)
+		return "", err
+	}
+	log.Println("Dumping struct: \n", string(s))
 	return string(s), err
 }
 

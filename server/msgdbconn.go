@@ -53,14 +53,17 @@ func (mm *MessageMgr) CreateOrUpdateMessage(msg Message) bool {
 
 	// Select database and collection
 	collection := mm.conn.GetCollection("MessageService", "Messages")
-	opts := options.Update().SetUpsert(true)
 
-	_, err := collection.UpdateByID(context.Background(), msg.ID, msg, opts)
+	filter := bson.M{"id": msg.ID}
+	opts := options.Update().SetUpsert(true)
+	m := bson.M{
+		"$setOnInsert": msg,
+	}
+	_, err := collection.UpdateOne(context.Background(), filter, m, opts)
 	if err != nil {
 		log.Println("Error creating Message: ", err.Error())
 		return false
 	}
-
 	return true
 }
 
@@ -69,22 +72,16 @@ func (mm *MessageMgr) ShowMessage(id string) Message {
 	// Select database and collection
 	collection := mm.conn.GetCollection("MessageService", "Messages")
 	filter := bson.M{"id": id}
-
 	var message Message
-
 	collection.FindOne(context.Background(), filter).Decode(&message)
-
 	return message
 }
 
 // DeleteMessage - Deletes the Message in the Messages Collection with name equal to the id parameter (id == name)
 func (mm *MessageMgr) DeleteMessage(id string) bool {
-
 	// Select database and collection
 	collection := mm.conn.GetCollection("MessageService", "Messages")
-
 	filter := bson.D{{"id", id}}
-
 	res, err := collection.DeleteOne(context.Background(), filter)
 	return err == nil && res.DeletedCount > 0
 }

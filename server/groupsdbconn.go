@@ -53,9 +53,12 @@ func (gm *GroupMgr) CreateOrUpdateGroup(grp Group) bool {
 
 	// Select database and collection
 	collection := gm.conn.GetCollection("GroupsService", "Groups")
+	filter := bson.M{"id": grp.ID}
 	opts := options.Update().SetUpsert(true)
-
-	_, err := collection.UpdateByID(context.Background(), grp.ID, grp, opts)
+	g := bson.M{
+		"$setOnInsert": grp,
+	}
+	_, err := collection.UpdateOne(context.Background(), filter, g, opts)
 	if err != nil {
 		log.Println("Error creating Group: ", err.Error())
 		return false
@@ -69,11 +72,8 @@ func (gm *GroupMgr) ShowGroup(id string) Group {
 	// Select database and collection
 	collection := gm.conn.GetCollection("GroupsService", "Groups")
 	filter := bson.M{"id": id}
-
 	var group Group
-
 	collection.FindOne(context.Background(), filter).Decode(&group)
-
 	return group
 }
 
