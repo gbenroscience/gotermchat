@@ -20,10 +20,10 @@ func main() {
 	//registered := flag.Bool("reg", false, "Boolean flag checking if user is just registering.\n If not present or set to false, it means the user is logging in, having registered before.")
 
 	var userName string
-	flag.StringVar(&userName, "u", "---", "Your user name")
+	flag.StringVar(&userName, "u", "", "Your user name")
 
 	var phone string
-	flag.StringVar(&phone, "ph", "---", "Your phone number")
+	flag.StringVar(&phone, "ph", "", "Your phone number")
 
 	var hostname string
 	flag.StringVar(&hostname, "h", "localhost", "The ip address or host name of the host server")

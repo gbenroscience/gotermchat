@@ -11,6 +11,44 @@ import (
 	"github.com/oklog/ulid"
 )
 
+// User ... Models information for the User
+type User struct {
+	ID       string    `bson:"_id" json:"id"`
+	Name     string    `json:"name"`
+	RegTime  time.Time `json:"regTime"`
+	Phone    string    `json:"phone"`
+	Password string    `json:"password"`
+}
+
+type LoginResponse struct {
+	User    User   `json:"user"`
+	Message string `json:"msg"`
+}
+
+type GroupMake struct {
+	Name string `json:"name"`
+	//Will double as the group id
+	Alias string `json:"alias"`
+}
+type GroupAdd struct {
+	NameOrAlias string `json:"name_or_alias"`
+	Phone       string `json:"phone"`
+}
+type GroupMessage struct {
+	NameOrAlias string `json:"name_or_alias"`
+	TextMessage string `json:"msg"`
+}
+type GroupRemoveMember struct {
+	NameOrAlias string `json:"name_or_alias"`
+	MemberPhone string `json:"member_phone"`
+}
+type GroupDelete struct {
+	NameOrAlias string `json:"name_or_alias"`
+}
+type GroupsListForUser struct {
+	Phone string `json:"phone"`
+}
+
 // AppendText ... Joins 2 strings like a StringBuffer in Java
 func AppendText(str1 string, str2 string) string {
 	var buf bytes.Buffer
@@ -38,14 +76,22 @@ func GenUlid() string {
 	return id.String()
 }
 
-func DumpStruct(b interface{}) (string, error) {
+func EncodeStruct(b interface{}) (string, error) {
+	s, err := json.MarshalIndent(b, "", "\t")
+	if err != nil {
+		return "", err
+	}
+	return string(s), err
+}
+
+func DumpStruct(b interface{}) error {
 	s, err := json.MarshalIndent(b, "", "\t")
 	if err != nil {
 		log.Printf("Error dumping struct: %v\n", err)
-		return "", err
+		return err
 	}
 	log.Println("Dumping struct: \n", string(s))
-	return string(s), err
+	return err
 }
 
 // DecodeItem Decodes a json string into a pointer to a generic Golang struct. Pass a pointer to this function

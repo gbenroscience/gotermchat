@@ -6,11 +6,12 @@ import (
 	"io"
 	"log"
 
+	"com.itis.apps/gotermchat/cmd"
 	"github.com/gorilla/websocket"
 )
 
 // NewClient ... Creates a new Client
-func NewClient(user *User, ws *websocket.Conn, server *Server) *Client {
+func NewClient(user *cmd.User, ws *websocket.Conn, server *Server) *Client {
 
 	if ws == nil {
 		panic("ws cannot be nil")

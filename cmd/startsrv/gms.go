@@ -156,8 +156,6 @@ func onConnect(ws *websocket.Conn, req *http.Request, response http.ResponseWrit
 		return
 	}
 
-	fmt.Println("pwd: ", pwd)
-
 	if len(pwd) < 6 {
 		ws.WriteMessage(websocket.TextMessage, []byte("...Decrypted Password too short!"))
 		ws.Close()
@@ -171,17 +169,30 @@ func onConnect(ws *websocket.Conn, req *http.Request, response http.ResponseWrit
 		}
 	}()
 
-	var u *serv.User
+	var u *cmd.User
 	/**
 	Register this person
 	*/
 	if config.Reg {
 
-		user := new(serv.User)
+		if len(strings.Trim(config.Phone, " ")) < 7 {
+			ws.WriteMessage(websocket.TextMessage, []byte("...Registration Failed. Bad phone."))
+			ws.Close()
+			return
+		}
+		if len(strings.Trim(config.Username, " ")) < 3 {
+			ws.WriteMessage(websocket.TextMessage, []byte("...Registration Failed. Username too short."))
+			ws.Close()
+			return
+		}
+
+		user := new(cmd.User)
+		user.ID = cmd.GenUlid()
 		user.Phone = config.Phone
 		user.Name = config.Username
 		user.Password = config.Password
 		user.RegTime = time.Now()
+
 		server.GetUserManager().CreateOrUpdateUser(*user)
 		ws.WriteMessage(websocket.TextMessage, []byte("...Connected!"))
 		u = user
@@ -209,10 +220,19 @@ func onConnect(ws *websocket.Conn, req *http.Request, response http.ResponseWrit
 				return
 			}
 			//valid user---allow login via phone
-			ws.WriteMessage(websocket.TextMessage, []byte("...Login Successful...via phone"))
+			var resp cmd.LoginResponse = cmd.LoginResponse{
+				User:    user,
+				Message: "...Login successful!! via phone",
+			}
+			if rspJsn, err := cmd.EncodeStruct(resp); err == nil {
+				ws.WriteMessage(websocket.TextMessage, []byte(rspJsn))
+			} else {
+				ws.WriteMessage(websocket.TextMessage, []byte("...login success, but error occurred"))
+			}
+
 			u = &user
 
-		} else if len(strings.Trim(config.Username, " ")) >= 4 { //usernames should be at least 4 digits long
+		} else if len(strings.Trim(config.Username, " ")) >= 3 { //usernames should be at least 3 characters long
 			user, err := server.GetUserManager().ShowUserByUserName(config.Username)
 			if err != nil {
 				ws.WriteMessage(websocket.TextMessage, []byte("...Login Failed!! Bad credentials."))
@@ -231,7 +251,16 @@ func onConnect(ws *websocket.Conn, req *http.Request, response http.ResponseWrit
 				return
 			}
 			//valid user---allow login via username
-			ws.WriteMessage(websocket.TextMessage, []byte("...Login Successful!! via username"))
+			var resp cmd.LoginResponse = cmd.LoginResponse{
+				User:    user,
+				Message: "...Login successful!! via username",
+			}
+			if rspJsn, err := cmd.EncodeStruct(resp); err == nil {
+				ws.WriteMessage(websocket.TextMessage, []byte(rspJsn))
+			} else {
+				ws.WriteMessage(websocket.TextMessage, []byte("...login success, but error occurred"))
+			}
+
 			u = &user
 		}
 	}

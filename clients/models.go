@@ -34,17 +34,17 @@ const (
 // Special Commands used to control messages
 const (
 	PrivateCommand      = "<pr"   // Sends a private message: e.g <pr:08165779034> message body...
-	GroupMessageCommand = "<grp"  // Sends a group message: e.g <grp:grpAlias> message body...
+	GroupMessageCommand = "<grp"  // Sends a group message: e.g <grp:alias> message body...
 	ExitCommand         = "@exit" // Tells the server that this user is disconnecting from chat
 	HistoryCommand      = "<hist" // Loads the last ...n... messages. <hist:n>
 
-	GroupAddCommand          = "<grpadd"     //The admin adds a user: e.g <grpadd:08165779034:grpName>
-	GroupMakeCommand         = "<grpmk"      // Creates a group: e.g  <grpmk:grpName>
-	GroupDelCommand          = "<grpdel"     // Deletes a group: e.g  <grpdel:grpName>
-	GroupRemoveMemberCommand = "<grprem"     // Removes a member from a group: e.g <grpprg:08165779034:grpName>
-	GroupListCommand         = "<lsgrps"     // Lists all your groups: e.g <grpls> or <grpls:0816577904> to list all groups created
-	GroupsForListCommand     = "<lsgrps-for" // Lists all groups created by 0816577904: <grpls:0816577904>
-	ListCommands             = "@cmd"        // lists all available commands
+	GroupAddCommand          = "<grpadd"  //The admin adds a user: e.g <grpadd:08165779034:alias>
+	GroupMakeCommand         = "<grpmk"   // Creates a group: e.g  <grpmk:grpName:alias>
+	GroupDelCommand          = "<grpdel"  // Deletes a group: e.g  <grpdel:alias>
+	GroupRemoveMemberCommand = "<grprem"  // Removes a member from a group: e.g <grprem:08165779034:alias>
+	GroupListCommand         = "<grpsls>" // Lists all your groups: e.g <grpsls> to list all groups created
+	GroupsForListCommand     = "<grpsls"  // Lists all groups created by 0816577904: <grpsls:0816577904>
+	ListCommands             = "<cmdls>"  // lists all available commands
 )
 
 // The syntax for using the commands
@@ -54,7 +54,7 @@ const (
 	ExitCommandSyntax         = "Type @exit. Disconnects you from the server normally"
 	HistoryCommandSyntax      = " <hist:n> Loads n messages from your message history"
 
-	GroupMakeCommandSyntax         = "<grpmk:grpName> Creates a new group...e.g <grpmk:Days of our lives>"
+	GroupMakeCommandSyntax         = "<grpmk:grpName:alias> Creates a new group...e.g <grpmk:Days of our lives:days_group>"
 	GroupAddCommandSyntax          = "<grpadd:08165779034:grpName> Adds the user with the given phone number to the group"
 	GroupDelCommandSyntax          = "<grpdel:grpName> Deletes a group"
 	GroupRemoveMemberCommandSyntax = "<grprem:08165779034:grpName> Removes a member from a group"
@@ -69,19 +69,11 @@ const (
 	ExchangeKeysSecret = "Hast thou known not? hast thou.." // must be 32 bytes
 )
 
-// User ...  Models user information
-type User struct {
-	Name     string    `json:"name"`
-	RegTime  time.Time `json:"regTime"`
-	Phone    string    `json:"phone"`
-	Password string    `json:"password"`
-}
-
 // Client ... Models a user and its connection information
 type Client struct {
-	Member   *User `json:"member"`
+	Member   *cmd.User `json:"member"`
 	Conn     *websocket.Conn
-	MsgCHAN  chan *Message
+	MsgChan  chan *Message
 	doneCh   chan bool
 	Messages map[string]*Message
 }

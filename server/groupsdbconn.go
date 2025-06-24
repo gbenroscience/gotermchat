@@ -68,13 +68,13 @@ func (gm *GroupMgr) CreateOrUpdateGroup(grp Group) bool {
 }
 
 // ShowGroup - Returns the Group in the Groups Collection with name equal to the id parameter (id == name)
-func (gm *GroupMgr) ShowGroup(id string) Group {
+func (gm *GroupMgr) ShowGroup(id string) (Group, error) {
 	// Select database and collection
 	collection := gm.conn.GetCollection("GroupsService", "Groups")
 	filter := bson.M{"id": id}
 	var group Group
-	collection.FindOne(context.Background(), filter).Decode(&group)
-	return group
+	err := collection.FindOne(context.Background(), filter).Decode(&group)
+	return group, err
 }
 
 // DeleteGroup - Deletes the Group in the Groups Collection with same id-value as the id parameter

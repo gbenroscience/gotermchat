@@ -1,11 +1,9 @@
 package server
 
 import (
-	"bytes"
-	"math/rand"
-	"strconv"
 	"time"
 
+	"com.itis.apps/gotermchat/cmd"
 	"github.com/gorilla/websocket"
 )
 
@@ -35,19 +33,23 @@ const (
 // Special Commands used to control messages
 const (
 	PrivateCommand      = "<pr"   // Sends a private message: e.g <pr:08165779034> message body...
-	GroupMessageCommand = "<grp"  // Sends a group message: e.g <grp:grpName> message-body...
+	GroupMessageCommand = "<grp"  // Sends a group message: e.g <grp:alias> message-body...
 	ExitCommand         = "@exit" // Tells the server that this user is disconnecting from chat
 	HistoryCommand      = "<hist" // Loads the last ...n... messages. <hist:n>
 
-	GroupAddCommand          = "<grpadd"     //The admin adds a user: e.g <grpadd:08165779034:grpName>
-	GroupMakeCommand         = "<grpmk"      // Creates a group: e.g  <grpmk:grpName>
-	GroupDelCommand          = "<grpdel"     // Deletes a group: e.g  <grpdel:grpName>
-	GroupRemoveMemberCommand = "<grprem"     // Removes a member from a group: e.g <grpprg:08165779034:grpName>
-	GroupListCommand         = "<lsgrps"     // Lists all your groups: e.g <grpls> or <grpls:0816577904> to list all groups created
-	GroupsForListCommand     = "<lsgrps-for" // Lists all groups created by 0816577904: <grpls:0816577904>
-	ListCommands             = "@cmd"        // lists all available commands
+	GroupAddCommand          = "<grpadd"  //The admin adds a user: e.g <grpadd:08165779034:grpName>
+	GroupMakeCommand         = "<grpmk"   // Creates a group: e.g  <grpmk:grpName:alias>
+	GroupDelCommand          = "<grpdel"  // Deletes a group: e.g  <grpdel:alias>
+	GroupRemoveMemberCommand = "<grprem"  // Removes a member from a group: e.g <grprem:08165779034:alias>
+	GroupListCommand         = "<grpsls>" // Lists all your groups: e.g <grpsls> to list all groups created
+	GroupsForListCommand     = "<grpsls"  // Lists all groups created by 0816577904: <grpsls:0816577904>
+	ListCommands             = "<cmdls>"  // lists all available commands
 
 )
+
+var Commands = []string{PrivateCommandSyntax, GroupMessageCommandSyntax, ExitCommandSyntax,
+	HistoryCommandSyntax, GroupAddCommandSyntax, GroupMakeCommandSyntax, GroupDelCommandSyntax, GroupRemoveMemberCommandSyntax, GroupListCommandSyntax,
+	GroupsForListCommandSyntax, ListCommandsSyntax}
 
 // The syntax for using the commands
 const (
@@ -56,7 +58,7 @@ const (
 	ExitCommandSyntax         = "Type @exit. Disconnects you from the server normally"
 	HistoryCommandSyntax      = " <hist:n> Loads n messages from your message history"
 
-	GroupMakeCommandSyntax         = "<grpmk:grpName> Creates a new group...e.g <grpmk:Days of our lives>"
+	GroupMakeCommandSyntax         = "<grpmk:grpName:alias> Creates a new group...e.g <grpmk:Days of our lives:days_group>"
 	GroupAddCommandSyntax          = "<grpadd:08165779034:grpName> Adds the user with the given phone number to the group"
 	GroupDelCommandSyntax          = "<grpdel:grpName> Deletes a group"
 	GroupRemoveMemberCommandSyntax = "<grprem:08165779034:grpName> Removes a member from a group"
@@ -74,18 +76,9 @@ const (
 	ChannelBufSize     = 100
 )
 
-// User ... Models information for the User
-type User struct {
-	ID       string    `bson:"_id" json:"id"`
-	Name     string    `json:"name"`
-	RegTime  time.Time `json:"regTime"`
-	Phone    string    `json:"phone"`
-	Password string    `json:"password"`
-}
-
 // Client ... Models information for the User and its connection
 type Client struct {
-	Member  *User `json:"member"`
+	Member  *cmd.User `json:"member"`
 	Conn    *websocket.Conn
 	server  *Server
 	MsgChan chan *Message
@@ -126,24 +119,6 @@ type Server struct {
 	sendAllCh  chan *Message
 	doneCh     chan bool
 	ErrCh      chan error
-}
-
-func createMessage(msg string, timeT time.Time, phone string, senderName string) {
-	message := new(Message)
-
-	message.Phone = phone
-	message.Time = timeT
-	message.Msg = msg
-	message.SenderName = senderName
-
-	var buffer bytes.Buffer
-
-	buffer.WriteString(phone)
-	buffer.WriteString("-")
-	randomVal := 10000 + rand.Intn(400000)
-	buffer.WriteString(strconv.Itoa(randomVal))
-
-	message.ID = buffer.String()
 }
 
 func (s Server) GetUserManager() *UserMgr {

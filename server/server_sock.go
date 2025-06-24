@@ -1,16 +1,15 @@
 package server
 
 import (
+	"fmt"
 	"log"
-	"strconv"
 	"strings"
 	"time"
 
-	"errors"
-
+	"com.itis.apps/gotermchat/cmd"
 	comd "com.itis.apps/gotermchat/cmd"
 	"com.itis.apps/gotermchat/database"
-	"github.com/gbenroscience/gscanner/scanner"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // NewServer ... Create a new chat server
@@ -27,6 +26,14 @@ func NewServer(pattern string, pool *database.MongoDB) *Server {
 	doneCh := make(chan bool)
 	errCh := make(chan error)
 
+	grps, err := groupMgr.GetGroups()
+	if err != nil {
+		fmt.Printf("Error loading groups: %v\n", err)
+	}
+	for _, group := range grps {
+		groups[group.ID] = &group
+	}
+
 	return &Server{
 		pattern,
 		messageMgr,
@@ -41,112 +48,6 @@ func NewServer(pattern string, pool *database.MongoDB) *Server {
 		doneCh,
 		errCh,
 	}
-}
-
-// makeGroup Creates a group from a group command of the format: <grpmk:grpName>
-// It returns the group name, a uid for the group or error if any
-func (s *Server) makeGroup(cmd string, phone string) (Group, error) {
-
-	startIndex := strings.Index(cmd, "<")
-	endIndex := strings.Index(cmd, ">") + 1
-
-	scannerEngine := scanner.NewScanner(cmd[startIndex:endIndex], []string{"<", ">", ":"}, false)
-
-	output := scannerEngine.Scan()
-
-	if len(output) == 3 {
-		command := output[0]
-		grpName := strings.TrimSpace(output[1])
-		alias := strings.TrimSpace(output[2])
-
-		if command != GroupMakeCommand[1:] {
-			return Group{}, errors.New("Bad command for making group. Please use the syntax: " + GroupMakeCommand)
-		}
-		if len(alias) > GroupAliasMaxLen {
-			return Group{}, errors.New("Error. Your group alias cannot be more than " + strconv.Itoa(GroupAliasMaxLen) + " characters")
-		}
-		if strings.Contains(alias, " ") || strings.Contains(alias, "\n") || strings.Contains(alias, "\t") {
-			return Group{}, errors.New("Error: Your group alias must have no white spaces.  ")
-		}
-
-		grp := &Group{
-			ID:         comd.GenUlid(),
-			Name:       grpName,
-			Alias:      alias,
-			AdminPhone: phone,
-			Members:    make([]string, 0),
-		}
-
-		//Ensure that none of the user's groups has either of the alias or name given here
-		if s.userHasGroupByName(phone, grp.Name) {
-			return Group{}, errors.New("Error: The Group, " + grp.Name + " is already amongst your groups!")
-		}
-
-		return *grp, nil
-	}
-
-	err := errors.New("The syntax of your command i.e `" + cmd + "` is wrong!\n Please use `<grpmk:grpName>` to create a new group")
-
-	return Group{}, err
-}
-
-// makeGroup Creates a group from a group command of the format: <grpmk:grpName>
-// It returns the group name, a uid for the group or error if any
-func (s *Server) addUserToGroup(cmd string, phone string) (Group, string, error) {
-	//<grpadd:08165779034:grpName>
-	startIndex := strings.Index(cmd, "<")
-	endIndex := strings.Index(cmd, ">") + 1
-
-	scannerEngine := scanner.NewScanner(cmd[startIndex:endIndex], []string{"<", ">", ":"}, false)
-
-	output := scannerEngine.Scan()
-
-	if len(output) == 3 {
-
-		command := output[0]
-		memPhone := output[1]
-		grpName := output[2]
-
-		if command == GroupAddCommand[1:] {
-
-			if s.userHasGroupByName(phone, grpName) {
-				grp, err := s.findGroupByNameOrAlias(phone, grpName)
-				if _, ok := s.clients[memPhone]; ok { //user is online
-
-					if err != nil {
-						return Group{}, memPhone, errors.New("The Group: " + grpName + " does not exist")
-					}
-					for _, mem := range grp.Members {
-						if mem == memPhone {
-							return Group{}, memPhone, errors.New("Stop spamming the user groups! That user: " + memPhone + " is already a group member")
-						}
-					}
-
-					grp.Members = append(grp.Members, memPhone)
-					s.groupMgr.CreateOrUpdateGroup(*grp)
-					return *grp, memPhone, nil
-
-				}
-				//user either not online or not registered at all
-
-				_, err = s.userMgr.ShowUser(memPhone)
-
-				if err != nil {
-					return Group{}, memPhone, errors.New("This user: " + memPhone + " is not on " + AppName)
-				}
-
-				grp.Members = append(grp.Members, memPhone)
-				s.groupMgr.CreateOrUpdateGroup(*grp)
-
-			}
-			return Group{}, memPhone, errors.New("Sorry, you do not have any group called: " + grpName)
-		}
-		return Group{}, memPhone, errors.New("Command Syntax Error. To add a user to a group, use: " + GroupAddCommandSyntax +
-			"\n Your Erroneous Command Was " + cmd)
-	}
-	return Group{}, "", errors.New("Your Command Syntax is wrong!. To add a user to a group, use: " + GroupAddCommandSyntax +
-		"\n Your Erroneous Command Was " + cmd)
-
 }
 
 func createErrorMessage(errMsg string, timeT time.Time) *Message {
@@ -188,38 +89,6 @@ func (s *Server) listGroups(phone string) *[]Group {
 	}
 
 	return &groups
-}
-
-// userHasGroupByName - Checks that no group of the user having the phone number has the supplied name.
-// phone is the phone number of the group creator and grpName is the name to check for
-func (s *Server) userHasGroupByName(phone string, grpNameOrAlias string) bool {
-
-	for _, v := range s.groups {
-		if v.AdminPhone == phone {
-			if v.Name == grpNameOrAlias || v.Alias == grpNameOrAlias {
-				return true
-			}
-			return false
-		}
-	}
-
-	return false
-}
-
-// findGroupByNameOrAlias - Checks that no group of the user having the phone number has the supplied name.
-// phone is the phone number of the group creator and grpNameOrAlias is the name or alias to check for
-func (s *Server) findGroupByNameOrAlias(phone string, grpNameOrAlias string) (*Group, error) {
-
-	for _, v := range s.groups {
-		if v.AdminPhone == phone {
-			if v.Name == grpNameOrAlias || v.Alias == grpNameOrAlias {
-				return v, nil
-			}
-			return &Group{}, errors.New("User " + phone + " has not created " + grpNameOrAlias)
-		}
-	}
-
-	return &Group{}, errors.New("No user like " + phone + " on " + AppName)
 }
 
 // Add ... Adds a new client
@@ -282,7 +151,7 @@ func (s *Server) StartListening() {
 
 		// del a client
 		case c := <-s.delCh:
-			log.Println("Delete client")
+			log.Println("Deleted client. ", len(s.clients), "clients connected.")
 			delete(s.clients, c.Member.Phone)
 
 			//Handle messages
@@ -309,36 +178,55 @@ func (s *Server) StartListening() {
 				}
 			} else if msg.Type == GroupMessage {
 				log.Println("Group message detected:", msg)
-				text := msg.Msg
-				//<grp=alias>
+				senderPhone := msg.Phone
+				sender := s.clients[senderPhone]
+				var groupMessage comd.GroupMessage
+				err := cmd.DecodeItem(msg.Msg, &groupMessage)
+				if err != nil {
+					sender.Write(createErrorMessage(err.Error(), time.Now()))
+					continue
+				}
 
-				startIndex := strings.Index(text, "<")
-				endIndex := strings.Index(text, ">") + 1
-				cmd := text[startIndex:endIndex]
-				_, userPhone, _ := parseCommand(cmd)
-
-				destClient := s.clients[userPhone]
-				if destClient != nil {
-					destClient.Write(msg)
+				group := s.groups[groupMessage.NameOrAlias] //NameOrAlias is same as the id
+				if group != nil {
+					for _, v := range group.Members {
+						if v == senderPhone {
+							continue //skip the sender
+						}
+						destClient := s.clients[v]
+						if destClient != nil {
+							destClient.Write(msg)
+						} else {
+							log.Println("User", v, "is not online")
+						}
+					}
 				}
 			} else if msg.Type == GroupMake {
 				//<grpmk:grpName>
 				log.Println("Group create command detected:", msg)
 
-				text := msg.Msg
-
-				adminPhone := msg.Phone
-				startIndex := strings.Index(text, "<")
-				endIndex := strings.Index(text, ">") + 1
-				cmd := text[startIndex:endIndex]
-				grp, err := s.makeGroup(cmd, adminPhone)
-
-				admin := s.clients[adminPhone]
+				senderPhone := msg.Phone
+				sender := s.clients[senderPhone]
+				var groupMake comd.GroupMake
+				err := cmd.DecodeItem(msg.Msg, &groupMake)
 				if err != nil {
-					admin.Write(createErrorMessage(err.Error(), time.Now()))
-				} else {
+					sender.Write(createErrorMessage(err.Error(), time.Now()))
+					continue
+				}
+
+				_, err = s.groupMgr.ShowGroup(groupMake.Alias)
+				if err == mongo.ErrNoDocuments { //no group by that alias exists yet
+					grp := Group{
+						ID:         groupMake.Alias, //not a mistake, aliases are unique
+						Name:       groupMake.Name,
+						Alias:      groupMake.Alias,
+						AdminPhone: senderPhone,
+						Members:    make([]string, 0),
+					}
+					admin := s.clients[senderPhone]
 					s.groups[grp.ID] = &grp
 					s.groupMgr.CreateOrUpdateGroup(grp)
+					fmt.Printf("admin: %v\n", admin)
 					admin.Write(createSuccessMessage("The group, `"+grp.Name+"` was created successfully. \nStart adding members with"+
 						GroupAddCommandSyntax+"\nSend a message to the group with: "+
 						GroupMessageCommandSyntax+"\n Delete the group with: "+
@@ -346,28 +234,162 @@ func (s *Server) StartListening() {
 						GroupRemoveMemberCommandSyntax+"\n List the groups you created with: "+
 						GroupListCommandSyntax+"\n List the groups someone created with: "+
 						GroupsForListCommandSyntax, time.Now()))
+					continue
+				}
+
+				if err == nil {
+					sender.Write(createErrorMessage("The group: "+groupMake.Alias+" exists already.", time.Now()))
+				} else {
+					sender.Write(createErrorMessage("Error in creating the group: "+groupMake.Alias, time.Now()))
 				}
 			} else if msg.Type == GroupAdd {
 				//<grpadd:08165779034:grpName>
-				log.Println("Group add user command detected:", msg)
+				log.Println("Group add member command detected:", msg)
 
-				text := msg.Msg
+				senderPhone := msg.Phone
+				sender := s.clients[senderPhone]
+				var groupAdd comd.GroupAdd
+				err := cmd.DecodeItem(msg.Msg, &groupAdd)
+				if err != nil {
+					sender.Write(createErrorMessage(err.Error(), time.Now()))
+					continue
+				}
 
+				grp := s.groups[groupAdd.NameOrAlias]
+				if grp.AdminPhone != senderPhone {
+					sender.Write(createErrorMessage("Only the group admin can add members", time.Now()))
+					continue
+				}
+				grp.Members = append(grp.Members, groupAdd.Phone)
+				s.groupMgr.CreateOrUpdateGroup(*grp)
 				adminPhone := msg.Phone
-				startIndex := strings.Index(text, "<")
-				endIndex := strings.Index(text, ">") + 1
-				cmd := text[startIndex:endIndex]
-				grp, memPhone, err := s.addUserToGroup(cmd, adminPhone)
-
+				fmt.Println("s.clients.len: ", len(s.clients))
 				admin := s.clients[adminPhone]
-				member := s.clients[memPhone]
+				member := s.clients[groupAdd.Phone]
+
+				if err != nil {
+					admin.Write(createErrorMessage(err.Error(), time.Now()))
+					continue
+				} else {
+					fmt.Println("sender-phone: "+adminPhone+", s.clients: ", s.clients)
+					admin.Write(createSuccessMessage("You have added "+member.Member.Name+" to "+grp.Alias, time.Now()))
+				}
+			} else if msg.Type == GroupRemoveMember {
+				//<grprem:08165779034:grpName>
+				log.Println("Group removed member command detected:", msg)
+
+				senderPhone := msg.Phone
+				sender := s.clients[senderPhone]
+				var groupRem comd.GroupRemoveMember
+				err := cmd.DecodeItem(msg.Msg, &groupRem)
+				if err != nil {
+					sender.Write(createErrorMessage(err.Error(), time.Now()))
+					continue
+				}
+
+				grp := s.groups[groupRem.NameOrAlias]
+				if grp.AdminPhone != senderPhone {
+					sender.Write(createErrorMessage("Only the group admin can remove members", time.Now()))
+					continue
+				}
+				newMembers := make([]string, 0)
+				for _, anon := range grp.Members { //delete specifiedd member
+					if anon != groupRem.MemberPhone {
+						newMembers = append(newMembers, anon)
+					}
+				}
+				grp.Members = newMembers
+				s.groupMgr.CreateOrUpdateGroup(*grp)
+				adminPhone := msg.Phone
+				admin := s.clients[adminPhone]
+				member := s.clients[groupRem.MemberPhone]
 
 				if err != nil {
 					admin.Write(createErrorMessage(err.Error(), time.Now()))
 				} else {
-					//	s.groups[grp.ID] = &grp
-					admin.Write(createSuccessMessage("You have added "+member.Member.Name+" to "+grp.Name, time.Now()))
+					admin.Write(createSuccessMessage("You have removed "+member.Member.Name+" to "+grp.Alias, time.Now()))
 				}
+			} else if msg.Type == GroupDel {
+				//<grpdel:alias>
+				log.Println("Group delete command detected:", msg)
+
+				senderPhone := msg.Phone
+				sender := s.clients[senderPhone]
+				var groupDel comd.GroupDelete
+				err := cmd.DecodeItem(msg.Msg, &groupDel)
+				if err != nil {
+					sender.Write(createErrorMessage(err.Error(), time.Now()))
+					continue
+				}
+
+				grp := s.groups[groupDel.NameOrAlias]
+				if grp.AdminPhone == senderPhone {
+					s.groupMgr.DeleteGroup(grp.ID)
+					delete(s.groups, groupDel.NameOrAlias)
+					sender.Write(createSuccessMessage("You have deleted the group: "+grp.Alias, time.Now()))
+				} else {
+					sender.Write(createErrorMessage("You are not the admin of this group: "+grp.Alias, time.Now()))
+				}
+
+			} else if msg.Type == GroupList {
+				//<grpdel:alias>
+				log.Println("Retrieve current User's Groups command detected:", msg)
+
+				senderPhone := msg.Phone
+				sender := s.clients[senderPhone]
+
+				var groups []Group = make([]Group, 0)
+				for _, v := range s.groups {
+					if v.AdminPhone == senderPhone {
+						groups = append(groups, *v)
+					}
+				}
+
+				groupsJsn, err := cmd.EncodeStruct(groups)
+				if err != nil {
+					sender.Write(createErrorMessage("Error occurred while listing groups for: "+sender.Member.Name, time.Now()))
+					continue
+				}
+				sender.Write(createSuccessMessage("Your groups: \n"+groupsJsn, time.Now()))
+			} else if msg.Type == GroupsForList {
+				//<grpdel:alias>
+				log.Println("Retrieve Groups created by user command detected:", msg)
+
+				senderPhone := msg.Phone
+				sender := s.clients[senderPhone]
+				var groupLs comd.GroupsListForUser
+				err := cmd.DecodeItem(msg.Msg, &groupLs)
+				if err != nil {
+					sender.Write(createErrorMessage(err.Error(), time.Now()))
+					continue
+				}
+
+				var groups []Group = make([]Group, 0)
+				for _, v := range s.groups {
+					if v.AdminPhone == groupLs.Phone {
+						groups = append(groups, *v)
+					}
+				}
+
+				groupsJsn, err := cmd.EncodeStruct(groups)
+				if err != nil {
+					sender.Write(createErrorMessage("Error occurred while listing groups for: "+sender.Member.Name, time.Now()))
+					continue
+				}
+				sender.Write(createSuccessMessage(sender.Member.Name+"'s groups: \n"+groupsJsn, time.Now()))
+
+			} else if msg.Type == ListCmds {
+				log.Println("List Commands command detected:", msg)
+
+				senderPhone := msg.Phone
+				sender := s.clients[senderPhone]
+
+				cmdsJsn, err := cmd.EncodeStruct(Commands)
+				if err != nil {
+					sender.Write(createErrorMessage("Error occurred while listing commands", time.Now()))
+					continue
+				}
+				sender.Write(createSuccessMessage("Available commands: \n]n"+cmdsJsn+"\n\n", time.Now()))
 			}
 
 		case err := <-s.ErrCh:

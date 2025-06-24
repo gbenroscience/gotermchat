@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"com.itis.apps/gotermchat/cmd"
+	comd "com.itis.apps/gotermchat/cmd"
 	"github.com/gbenroscience/gscanner/scanner"
 	"github.com/gorilla/websocket"
 )
@@ -21,7 +22,7 @@ func connect(conf *Config) {
 
 	url := conf.URLBuilder()
 
-	fmt.Println("Connecting to ", url, "\n\nPlease wait...")
+	fmt.Println("Connecting.\nPlease wait...")
 	var dialer *websocket.Dialer
 	//dialer.HandshakeTimeout = time.Second * 1
 
@@ -37,22 +38,22 @@ func connect(conf *Config) {
 		fmt.Println(err)
 		log.Fatal("Please try again. Tips: Check your network connections and your credentials.")
 	}
-	fmt.Println("Connected to ", url)
+	fmt.Println("Connected.")
 	fmt.Println("-------------------------------------------------------------------------")
-	fmt.Println(" Welcome to GoTermyChat Chat")
+	fmt.Println(" Welcome to GoTermChat Chat")
 	fmt.Println("-------------------------------------------------------------------------")
 
 	client := new(Client)
 
 	client.Conn = conn
 
-	user := new(User)
+	user := new(cmd.User)
 	user.Name = conf.Username
 	user.Phone = conf.Phone
 	user.Password = conf.Password
 
 	client.Member = user
-	client.MsgCHAN = make(chan *Message, 10)
+	client.MsgChan = make(chan *Message, 10)
 	client.Messages = make(map[string]*Message)
 
 	client.receiver()
@@ -68,7 +69,7 @@ func StartConn(conf *Config) {
 		return
 	}
 
-	jsonData, err := cmd.DumpStruct(conf)
+	jsonData, err := cmd.EncodeStruct(conf)
 	if err != nil {
 		fmt.Printf("...Error dumping config struct to JSON: %v\n", err)
 		return
@@ -104,8 +105,6 @@ func (client *Client) messenger(msgChan chan *Message) {
 	//conn.WriteMessage(websocket.TextMessage, []byte(time.Now().Format("2006-01-02 15:04:05")))
 	message := <-msgChan
 
-	log.Println("Broadcast detected:", message)
-
 	buf, err := json.Marshal(*message)
 	if err != nil {
 		fmt.Println("Unsupported Message")
@@ -129,28 +128,36 @@ func (client *Client) receiver() {
 	for {
 		_, message, err := client.Conn.ReadMessage()
 		if err != nil {
-			fmt.Println("read:", err)
+			fmt.Println("read-err:", err)
 			return
 		}
 
 		if strings.HasPrefix(string(message), "...") {
 			fmt.Println(string(message))
 		} else {
-
 			var msg Message
-
-			err = json.Unmarshal(message, &msg)
-			if err != nil {
-				fmt.Println("Couldn't decode the message:", string(message), err)
-				return
+			decoder := json.NewDecoder(bytes.NewBuffer(message))
+			decoder.DisallowUnknownFields()
+			err = decoder.Decode(&msg)
+			if err != nil { //cant decode as Message
+				var resp cmd.LoginResponse
+				decoder := json.NewDecoder(bytes.NewBuffer(message))
+				decoder.DisallowUnknownFields()
+				err = decoder.Decode(&resp)
+				if err != nil { //cant decode as login respone
+					fmt.Printf("Error decoding message: %v\n", err)
+					fmt.Println("Message causing error:", string(message))
+					continue
+				}
+				client.Member = &resp.User
+				fmt.Printf("Logged in User\n%s,\n%s\n____________________________________________________________\n", resp.User.Name, resp.User.Phone)
 			}
 
 			printMessage(msg)
 
 			client.Messages[msg.ID] = &msg
 		}
-
-	}
+	} //end for loop
 }
 
 func (client *Client) acceptInput() {
@@ -162,6 +169,7 @@ func (client *Client) acceptInput() {
 	for scanner.Scan() {
 		chatMsg := scanner.Text()
 		message := createMessage(chatMsg, time.Now(), client.Member.Phone, client.Member.Name)
+		fmt.Printf("client-phone: " + client.Member.Phone)
 
 		if strings.HasPrefix(chatMsg, ExitCommand) { //@exit
 			client.normalClose()
@@ -185,19 +193,42 @@ func (client *Client) acceptInput() {
 				continue
 			}
 
-		} else if strings.HasPrefix(chatMsg, GroupMakeCommand) { //<hist=20>
+		} else if strings.HasPrefix(chatMsg, GroupDelCommand) { // syntax is: <grpdel:grpName>
+
+			startIndex := strings.Index(chatMsg, "<")
+			endIndex := strings.Index(chatMsg, ">") + 1
+			cmd := chatMsg[startIndex:endIndex]
+			_, cmdVal, syntax := client.parseCommand(cmd)
+
+			if syntax {
+				message.Type = GroupDel
+				var cmdMsg = comd.GroupDelete{
+					NameOrAlias: cmdVal,
+				}
+				message.Msg, _ = comd.EncodeStruct(cmdMsg)
+			} else {
+				fmt.Println("Please check the syntax to use near: ", cmd, " Message not sent! \nThe syntax is "+GroupMessageCommandSyntax+". \nIt allows you to send a message to users in the specified group")
+				continue
+			}
+
+		} else if strings.HasPrefix(chatMsg, GroupMakeCommand) { //<grpMk:grpName>
 
 			startIndex := strings.Index(chatMsg, "<")
 			endIndex := strings.Index(chatMsg, ">") + 1
 			cmd := chatMsg[startIndex:endIndex]
 
-			_, _, _, err := client.parse3ArgsCommand(cmd)
+			_, grpName, alias, err := client.parse3ArgsCommand(cmd)
 
 			if err != nil {
-				fmt.Println(err.Error() + " To create new groups, the format is " + GroupMakeCommandSyntax + "\n")
+				fmt.Println("error! to create new groups the format is " + GroupMakeCommandSyntax)
 				continue
 			} else {
 				message.Type = GroupMake
+				var cmdMsg = comd.GroupMake{
+					Name:  grpName,
+					Alias: alias,
+				}
+				message.Msg, _ = comd.EncodeStruct(cmdMsg)
 			}
 
 		} else if strings.HasPrefix(chatMsg, GroupAddCommand) {
@@ -206,36 +237,90 @@ func (client *Client) acceptInput() {
 			endIndex := strings.Index(chatMsg, ">") + 1
 			cmd := chatMsg[startIndex:endIndex]
 
-			_, _, _, err := client.parse3ArgsCommand(cmd)
+			_, memPhone, alias, err := client.parse3ArgsCommand(cmd)
 
 			if err != nil {
 				fmt.Println(err.Error() + " To add a user to your group, the format is " + GroupAddCommandSyntax + "\n")
 				continue
 			} else {
 				message.Type = GroupAdd
+				var cmdMsg = comd.GroupAdd{
+					NameOrAlias: alias,
+					Phone:       memPhone,
+				}
+				message.Msg, _ = comd.EncodeStruct(cmdMsg)
 			}
 
-		} else if strings.HasPrefix(chatMsg, GroupMessageCommand) { // syntax is: <grp=grpAlias>
+		} else if strings.HasPrefix(chatMsg, GroupRemoveMemberCommand) {
 
 			startIndex := strings.Index(chatMsg, "<")
 			endIndex := strings.Index(chatMsg, ">") + 1
 			cmd := chatMsg[startIndex:endIndex]
-			_, _, syntax := client.parseCommand(cmd)
+
+			_, memPhone, alias, err := client.parse3ArgsCommand(cmd)
+
+			if err != nil {
+				fmt.Println(err.Error() + " To remove a user from your group, the format is " + GroupRemoveMemberCommandSyntax + "\n")
+				continue
+			} else {
+				message.Type = GroupRemoveMember
+				var cmdMsg = comd.GroupRemoveMember{
+					NameOrAlias: alias,
+					MemberPhone: memPhone,
+				}
+				message.Msg, _ = comd.EncodeStruct(cmdMsg)
+			}
+
+		} else if strings.HasPrefix(chatMsg, GroupMessageCommand) { // syntax is: <grp:grpAlias>
+
+			startIndex := strings.Index(chatMsg, "<")
+			endIndex := strings.Index(chatMsg, ">") + 1
+			textMsg := chatMsg[endIndex:]
+			cmd := chatMsg[startIndex:endIndex]
+			_, cmdVal, syntax := client.parseCommand(cmd)
 
 			if syntax {
 				message.Type = GroupMessage
+				var cmdMsg = comd.GroupMessage{
+					NameOrAlias: cmdVal,
+					TextMessage: textMsg,
+				}
+				message.Msg, _ = comd.EncodeStruct(cmdMsg)
 			} else {
 				fmt.Println("Please check the syntax to use near: ", cmd, " Message not sent! \nThe syntax is "+GroupMessageCommandSyntax+". \nIt allows you to send a message to users in the specified group")
 				continue
 			}
 
+		} else if strings.HasPrefix(chatMsg, GroupsForListCommand) { // syntax is: <grpsls:phone>
+
+			startIndex := strings.Index(chatMsg, "<")
+			endIndex := strings.Index(chatMsg, ">") + 1
+			cmd := chatMsg[startIndex:endIndex]
+			_, cmdVal, syntax := client.parseCommand(cmd)
+			if syntax {
+				message.Type = GroupsForList
+				var cmdMsg = comd.GroupsListForUser{
+					Phone: cmdVal,
+				}
+				message.Msg, _ = comd.EncodeStruct(cmdMsg)
+			} else {
+				fmt.Println("Please check the syntax to use near: ", cmd, " Message not sent! \nThe syntax is "+GroupsForListCommandSyntax+". \nIt allows you to send a message to users in the specified group")
+				continue
+			}
+
+		} else if chatMsg == GroupListCommand { // syntax is: <grpsls>
+			message.Type = GroupList
+			message.Msg = GroupListCommand
+		} else if chatMsg == ListCommands { // syntax is <cmdls>
+			message.Type = ListCmds
+			message.Msg = ListCommands
 		} else {
 			message.Type = BroadcastMessage
 			fmt.Println("Sending a broadcast!!")
 		}
 
-		client.MsgCHAN <- message
-		go client.messenger(client.MsgCHAN)
+		client.MsgChan <- message
+		go client.messenger(client.MsgChan)
 	}
 	scanner.Err()
 }
@@ -308,21 +393,31 @@ func (client *Client) parse3ArgsCommand(cmd string) (string, string, string, err
 
 		command := output[0]
 
-		if command == GroupMakeCommand[1:len(GroupMakeCommand)] {
-			grpName := strings.TrimSpace(output[1])
+		if command == GroupMakeCommand[1:] { //<grpmk:grpName:alias>
+			grpName := strings.Trim(output[1], " ")
+			grpAlias := strings.Trim(output[2], " ")
+			return command, grpName, grpAlias, nil
+		}
+		if command == GroupAddCommand[1:] { //<grpadd:08165779034:grpName>
+			memPhone := strings.TrimSpace(output[1])
 			alias := strings.TrimSpace(output[2])
+			return command, memPhone, alias, nil
+		}
+		if command == GroupRemoveMemberCommand[1:] { //<grprem:08165779034:grpName>
+			memPhone := strings.TrimSpace(output[1])
+			alias := strings.TrimSpace(output[2])
+			return command, memPhone, alias, nil
+		}
+		if command == GroupDelCommand[1:] { //<grpdel:grpName>
+			memPhone := strings.TrimSpace(output[1])
+			alias := strings.TrimSpace(output[2])
+			return command, memPhone, alias, nil
+		}
+		if command == GroupListCommand[1:] { //<lsgrps> or <lsgrps:0816577904> to list all groups created
 
-			return command, grpName, alias, nil
 		}
-		if command == GroupAddCommand[1:len(GroupAddCommand)] {
-			memPhone := strings.TrimSpace(output[1])
-			alias := strings.TrimSpace(output[2])
-			return command, memPhone, alias, nil
-		}
-		if command == GroupRemoveMemberCommand[1:len(GroupRemoveMemberCommand)] {
-			memPhone := strings.TrimSpace(output[1])
-			alias := strings.TrimSpace(output[2])
-			return command, memPhone, alias, nil
+		if command == GroupsForListCommand[1:] { //<lsgrps-for:0816577904>
+
 		}
 
 		return "", "", "", errors.New("Invalid command")
