@@ -71,6 +71,10 @@ const (
 const (
 	AppPhone           = "080-GTC-000"
 	AppName            = "GoTermyChat"
+	BASE               = "gotermchat"
+	Version            = "v1.0.0"
+	HeaderText         = "text/plain; charset=utf-8"
+	HeaderJson         = "application/json charset=utf-8"
 	MongoURL           = "mongodb://localhost:27017"
 	ExchangeKeysSecret = "Hast thou known not? hast thou.." // must be 32 bytes
 	ChannelBufSize     = 100

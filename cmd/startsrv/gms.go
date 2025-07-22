@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"net/http"
 	"os"
@@ -14,8 +15,14 @@ import (
 	"com.itis.apps/gotermchat/cmd"
 	"com.itis.apps/gotermchat/database"
 	serv "com.itis.apps/gotermchat/server"
+	"github.com/apex/log"
+	"github.com/apex/log/handlers/multi"
+	"github.com/apex/log/handlers/text"
 	"github.com/gorilla/websocket"
 )
+
+//go:embed html/*
+var Assets embed.FS
 
 // SERVER ... The Server
 var server *serv.Server
@@ -39,6 +46,41 @@ func main() {
 	flag.StringVar(&serverIP, "h", "localhost", "The MongoDB URL to connect to")
 
 	flag.Parse()
+
+	// Make handlers
+	handlers := make([]log.Handler, 0)
+
+	// Try to recover from a Crash
+	defer func() {
+		if err := recover(); err != nil {
+			log.WithField("type", "CRASH").Error("System Crashed at " + time.Now().String())
+		}
+	}()
+
+	fmt.Println()
+
+	// Test Handler
+	hCli := text.New(os.Stderr)
+	handlers = append(handlers, hCli)
+
+	// Test Handlers
+	log.SetHandler(multi.New(handlers...))
+
+	logger := log.NewEntry(&log.Logger{
+		Handler: multi.New(handlers...), // Try to get the messages on time
+	})
+
+	// Get Hostname
+	hostName, err := os.Hostname()
+	if err != nil {
+		log.WithError(err).Fatal("Can't get hostname")
+	}
+
+	logger = logger.WithFields(log.Fields{
+		"app":     serv.AppName,
+		"host":    hostName,
+		"version": serv.Version,
+	})
 
 	var buffer bytes.Buffer
 
@@ -69,7 +111,9 @@ func main() {
 	go server.StartListening()
 
 	fmt.Printf("Server is listening @ %s\n", buffer.String())
-	panic(http.ListenAndServe(buffer.String(), nil))
+	//panic(http.ListenAndServe(buffer.String(), nil))
+
+	panic(serv.Start(logger, buffer.String(), Assets))
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+<html>
+<head>
+    <title>Status Page</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        *{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-box-sizing: border-box;
+            -moz-box-sizing: border-box;
+        }
+
+
+        html , body{
+            width: 100%;
+            max-width: 100%;
+            height: 100%;
+            min-height: 100%;
+            overflow: auto;
+            background-color: whitesmoke;
+        }
+        body{
+            font-size: 100%;
+        }
+
+        [class ^= 'col-']{
+            float:left;
+        }
+
+        input[type='button']{
+            -webkit-appearance: button;
+        }
+        input[type='email'] , input[type='text'] , input[type='password']{
+            background-color: white;
+        }
+
+        .col-1{
+            width: 4%;
+        }  .col-2{
+               width: 8%;
+           }  .col-3{
+                  width: 12%;
+              }  .col-4{
+                     width: 16%;
+                 }
+        .col-5{
+            width: 20%;
+        }  .col-6{
+               width: 24%;
+           }  .col-7{
+                  width: 28%;
+              }  .col-8{
+                     width: 32%;
+                 }
+
+        .col-9{
+            width: 36%;
+        }  .col-10{
+               width: 40%;
+           }  .col-11{
+                  width: 44%;
+              }  .col-12{
+                     width: 48%;
+                 }
+        .col-13{
+            width: 52%;
+        }  .col-14{
+               width: 56%;
+           }  .col-15{
+                  width: 60%;
+              }  .col-16{
+                     width: 64%;
+                 }
+        .col-17{
+            width: 68%;
+        }  .col-18{
+               width: 72%;
+           }  .col-19{
+                  width: 76%;
+              }  .col-20{
+                     width: 80%;
+                 }
+        .col-21{
+            width: 84%;
+        }  .col-22{
+               width: 88%;
+           }  .col-23{
+                  width: 92%;
+              }
+        .col-24{
+            width: 96%;
+        }
+        .col-25{
+            width: 100%;
+        }
+
+        .col-14pct{
+            width: 14%;
+        }
+        .col-86pct{
+            width:86%;
+        }
+        .col-one-third{
+            width: 33.333333333%;
+        }
+
+        /*full height columns*/
+        [class ^= 'col_']{
+            float: left;
+            height: 100%;
+        }
+        .col_1{
+            width: 4%;
+        }  .col_2{
+               width: 8%;
+           }  .col_3{
+                  width: 12%;
+              }  .col_4{
+                     width: 16%;
+                 }
+        .col_5{
+            width: 20%;
+        }  .col_6{
+               width: 24%;
+           }  .col_7{
+                  width: 28%;
+              }  .col_8{
+                     width: 32%;
+                 }
+        .col_9{
+            width: 36%;
+        }  .col_10{
+               width: 40%;
+           }  .col_11{
+                  width: 44%;
+              }  .col_12{
+                     width: 48%;
+                 }
+        .col_13{
+            width: 52%;
+        }  .col_14{
+               width: 56%;
+           }  .col_15{
+                  width: 60%;
+              }  .col_16{
+                     width: 64%;
+                 }
+        .col_17{
+            width: 68%;
+        }  .col_18{
+               width: 72%;
+           }  .col_19{
+                  width: 76%;
+              }  .col_20{
+                     width: 80%;
+                 }
+        .col_21{
+            width: 84%;
+        }  .col_22{
+               width: 88%;
+           }  .col_23{
+                  width: 92%;
+              }
+        .col_24{
+            width: 96%;
+        }
+        .col_25{
+            width: 100%;
+        }
+
+
+        .column-1{
+            width: 4%;
+        }  .column-2{
+               width: 8%;
+           }  .column-3{
+                  width: 12%;
+              }  .column-4{
+                     width: 16%;
+                 }
+        .column-5{
+            width: 20%;
+        }  .column-6{
+               width: 24%;
+           }  .column-7{
+                  width: 28%;
+              }  .column-8{
+                     width: 32%;
+                 }
+
+        .column-9{
+            width: 36%;
+        }  .column-10{
+               width: 40%;
+           }  .column-11{
+                  width: 44%;
+              }  .column-12{
+                     width: 48%;
+                 }
+        .column-13{
+            width: 52%;
+        }  .column-14{
+               width: 56%;
+           }  .column-15{
+                  width: 60%;
+              }  .column-16{
+                     width: 64%;
+                 }
+        .column-17{
+            width: 68%;
+        }  .column-18{
+               width: 72%;
+           }  .column-19{
+                  width: 76%;
+              }  .column-20{
+                     width: 80%;
+                 }
+        .column-21{
+            width: 84%;
+        }  .column-22{
+               width: 88%;
+           }  .column-23{
+                  width: 92%;
+              }
+        .column-24{
+            width: 96%;
+        }
+        .column-25{
+            width: 100%;
+        }
+
+        .column-one-third{
+            width: 33.3333333333%;
+        }
+
+        .block{
+            float: left;
+            box-sizing: content-box;
+            height: 100%;
+            background-color: linen;
+            padding: 0px;
+            margin: 0px;
+        }
+
+        .top-banner{
+            float: left;
+            height: 20em;
+            padding: 0px;
+            margin: 0px;
+            background-color: lightcoral;
+        }
+
+        .title{
+            margin-left: 2em;
+            margin-top: 2em;
+            font-weight: bold;
+            font-family: cursive;
+            font-size: 2em;
+            color: white;
+            padding: 0;
+            text-align: left;
+        }
+        ul{
+            margin-left: 6em;
+            margin-top:  0.5em;
+            list-style-type: none;
+            color: black;
+        }
+
+        ul > li:first-child{
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        ul > li:not(:first-child){
+            font-style: italic;
+            font-size: 1em;
+            padding-top: 1em;
+
+        }
+
+        .notif{
+            margin-top: 1.8em;
+            color: black;
+            font-size: 2em;
+            font-weight: bold;
+            text-align: center;
+        }
+        div > div.notif > span{
+            color: mediumblue;
+            font-style: italic;
+            font-size: 1.2em;
+
+        }
+
+
+
+    </style>
+</head>
+<body class="col_25 block">
+<div class="col-25 top-banner">
+            <span class="col-10 title">
+                Welcome to Paytfare API Indicator Page!
+            </span>
+    <div class="col-15 "> </div>
+    <ul class="col-10">
+        <li>Executive Partners:</li>
+        <li>
+            <table>
+                <tr>
+                    <td>Taiwo Fapohunda</td><td>(CEO Admin)</td>
+                </tr>
+                <tr>
+                    <td>Gbemiro Jiboye</td> <td>(CEO Tech)</td>
+                </tr>
+            </table>
+        </li>
+    </ul>
+    <div class="col-25 notif">
+        If you are seeing this page, then <span>Paytfare</span> is up and running
+    </div>
+</div>
+
+
+
+
+
+</body>
+</html>
