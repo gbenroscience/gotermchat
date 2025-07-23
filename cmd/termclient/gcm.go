@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 	"os"
 
 	// Import the term package
@@ -57,6 +58,13 @@ func main() {
 		return
 	}
 
+	if !isPrivateIP(hostname) {
+		port = ""
+		//discountenance port if is public ip to enforce servers to use standard port 80|443
+	}
+
+	fmt.Println("hostname: ", hostname)
+
 	conf := &clientele.Config{
 		Phone:    phone,
 		Host:     hostname,
@@ -66,6 +74,47 @@ func main() {
 		Reg:      isReg,
 	}
 
+	fmt.Printf("conf: %v\n", conf)
+
 	clients.StartConn(conf)
 
+}
+
+func isPrivateIP(ipStr string) bool {
+	if ipStr == "localhost" || ipStr == "127.0.0.1" {
+		return true
+	}
+	v, _ := isLocalhost(ipStr)
+
+	if v {
+		return true
+	}
+	ip := net.ParseIP(ipStr)
+	privateBlocks := []string{
+		"10.0.0.0/8",
+		"172.16.0.0/12",
+		"192.168.0.0/16",
+	}
+
+	for _, block := range privateBlocks {
+		_, cidr, _ := net.ParseCIDR(block)
+		if cidr.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func isLocalhost(addr string) (bool, error) {
+	ips, err := net.LookupIP(addr)
+	if err != nil {
+		return false, fmt.Errorf("failed to lookup IP for address %s: %w", addr, err)
+	}
+
+	for _, ip := range ips {
+		if ip.IsLoopback() {
+			return true, nil
+		}
+	}
+	return false, nil
 }

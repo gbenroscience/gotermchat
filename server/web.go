@@ -4,11 +4,14 @@ import (
 	"embed"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
+	"com.itis.apps/gotermchat/cmd"
 	"github.com/apex/log"
 	"github.com/go-chi/chi"
+	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/thoas/stats"
@@ -25,8 +28,211 @@ func init() {
 	prometheus.MustRegister(ApiRequestObserver)
 }
 
-func Start(logger *log.Entry, host string, root embed.FS) error {
+func Start(server *Server, logger *log.Entry, host string, root embed.FS) error {
 
+	var onConnect = func(server *Server, ws *websocket.Conn, req *http.Request, response http.ResponseWriter) {
+		data := req.FormValue("data")
+
+		k, err := cmd.NewKryptik(ExchangeKeysSecret, cmd.ModeCBC) //base64.RawURLEncoding.DecodeString(base64Str)
+		if err != nil {
+			ws.WriteMessage(websocket.TextMessage, []byte("...Error loading password decryptor!"))
+			ws.Close()
+			return
+		}
+
+		jsonData, err := k.Decrypt(data)
+		if err != nil {
+			ws.WriteMessage(websocket.TextMessage, []byte("...Error decrypting credentials!..."+fmt.Errorf("...err: %v\n", err).Error()))
+			ws.Close()
+			return
+		}
+
+		var config ClientConfig
+		err = cmd.DecodeItem(jsonData, &config)
+
+		if err != nil {
+			ws.WriteMessage(websocket.TextMessage, []byte("...Error decoding client credentials"))
+			ws.Close()
+			return
+		}
+
+		pwd, err := k.Decrypt(config.Password) //from client terminal app
+		if err != nil {
+			ws.WriteMessage(websocket.TextMessage, []byte("...Error decrypting password!..."+fmt.Errorf("...err: %v\n", err).Error()))
+			ws.Close()
+			return
+		}
+
+		if len(pwd) < 6 {
+			ws.WriteMessage(websocket.TextMessage, []byte("...Decrypted Password too short!"))
+			ws.Close()
+			return
+		}
+
+		defer func() {
+			err := ws.Close()
+			if err != nil {
+				server.ErrCh <- err
+			}
+		}()
+
+		var u *cmd.User
+		/**
+		Register this person
+		*/
+		if config.Reg {
+
+			if len(strings.Trim(config.Phone, " ")) < 7 {
+				ws.WriteMessage(websocket.TextMessage, []byte("...Registration Failed. Bad phone."))
+				ws.Close()
+				return
+			}
+			if len(strings.Trim(config.Username, " ")) < 3 {
+				ws.WriteMessage(websocket.TextMessage, []byte("...Registration Failed. Username too short."))
+				ws.Close()
+				return
+			}
+
+			user := new(cmd.User)
+			user.ID = cmd.GenUlid()
+			user.Phone = config.Phone
+			user.Name = config.Username
+			user.Password = config.Password
+			user.RegTime = time.Now()
+
+			server.GetUserManager().CreateOrUpdateUser(*user)
+			ws.WriteMessage(websocket.TextMessage, []byte("...Connected!"))
+			u = user
+
+		} else {
+
+			if len(strings.Trim(config.Phone, " ")) >= 7 {
+				user, err := server.GetUserManager().ShowUser(config.Phone)
+				if err != nil {
+					ws.WriteMessage(websocket.TextMessage, []byte("...Login Failed. Bad credentials."))
+					ws.Close()
+					return
+				}
+
+				pswd, err := k.Decrypt(user.Password)
+				if err != nil {
+					ws.WriteMessage(websocket.TextMessage, []byte("...Error decrypting password from db!..."+fmt.Errorf("...err: %v\n", err).Error()))
+					ws.Close()
+					return
+				}
+
+				if pswd != pwd { //do passwords match?
+					ws.WriteMessage(websocket.TextMessage, []byte("...Login Failed. Incorrect credentials."))
+					ws.Close()
+					return
+				}
+				//valid user---allow login via phone
+				var resp cmd.LoginResponse = cmd.LoginResponse{
+					User:    user,
+					Message: "...Login successful!! via phone",
+				}
+				if rspJsn, err := cmd.EncodeStruct(resp); err == nil {
+					ws.WriteMessage(websocket.TextMessage, []byte(rspJsn))
+				} else {
+					ws.WriteMessage(websocket.TextMessage, []byte("...login success, but error occurred"))
+				}
+
+				u = &user
+
+			} else if len(strings.Trim(config.Username, " ")) >= 3 { //usernames should be at least 3 characters long
+				user, err := server.GetUserManager().ShowUserByUserName(config.Username)
+				if err != nil {
+					ws.WriteMessage(websocket.TextMessage, []byte("...Login Failed!! Bad credentials."))
+					ws.Close()
+					return
+				}
+				pswd, err := k.Decrypt(user.Password)
+				if err != nil {
+					ws.WriteMessage(websocket.TextMessage, []byte("...Error decrypting password from db!..."+fmt.Errorf("...err: %v\n", err).Error()))
+					ws.Close()
+					return
+				}
+				if pswd != pwd {
+					ws.WriteMessage(websocket.TextMessage, []byte(".................Login Failed!! Incorrect  credentials."))
+					ws.Close()
+					return
+				}
+				//valid user---allow login via username
+				var resp cmd.LoginResponse = cmd.LoginResponse{
+					User:    user,
+					Message: "...Login successful!! via username",
+				}
+				if rspJsn, err := cmd.EncodeStruct(resp); err == nil {
+					ws.WriteMessage(websocket.TextMessage, []byte(rspJsn))
+				} else {
+					ws.WriteMessage(websocket.TextMessage, []byte("...login success, but error occurred"))
+				}
+
+				u = &user
+			}
+		}
+
+		client := NewClient(u, ws, server)
+		client.Conn = ws
+		client.MsgChan = make(chan *Message, ChannelBufSize)
+
+		server.Add(client)
+		client.Listen()
+	}
+
+	var rootHandler = func(w http.ResponseWriter, r *http.Request) {
+		content, err := os.ReadFile("index.html")
+		if err != nil {
+			fmt.Println("Could not open file.", err)
+		}
+		fmt.Fprintf(w, "%s", content)
+	}
+
+	var wsHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("host: ", r.Host, "wsHandler called")
+		/*log.Print(r.Host)
+		log.Println("----------------------")
+		log.Println(r.Header.Get("Origin"))
+		if r.Header.Get("Origin") != "http://"+r.Host {
+			http.Error(w, "Origin not allowed", 403)
+			return
+		}*/
+
+		var upgrader = websocket.Upgrader{
+			ReadBufferSize:    1024,
+			WriteBufferSize:   1024,
+			EnableCompression: true,
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		}
+
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			msg := fmt.Sprintf("Could not open websocket connection: %v", err)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
+		socketTimeOut := 30 * time.Minute
+		err = conn.SetReadDeadline(time.Now().Add(socketTimeOut))
+		if err != nil {
+			msg := fmt.Sprintf("Could not set read deadline on socket %v", err)
+			http.Error(w, msg, http.StatusInternalServerError)
+			return
+		}
+		err = conn.SetWriteDeadline(time.Now().Add(socketTimeOut))
+		if err != nil {
+			msg := fmt.Sprintf("Could not set write deadline on socket %v", err)
+			http.Error(w, msg, http.StatusInternalServerError)
+			return
+		}
+
+		// websocket handler
+		go onConnect(server, conn, r, w)
+
+	}
+
+	fmt.Println("url: ", host)
 	m := stats.New()
 	router := chi.NewMux()
 	// router.Use(mm.ApiRequestInstrumentationHandler)
@@ -51,6 +257,9 @@ func Start(logger *log.Entry, host string, root embed.FS) error {
 
 	// Set Web
 	Web(root, router)
+
+	router.HandleFunc("/ws/imaxine-that", wsHandler)
+	router.HandleFunc("/", rootHandler)
 
 	router.Route("/"+BASE, func(sub chi.Router) {
 		sub.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -139,25 +348,3 @@ func isPermittedRoute(url string) bool {
 	}
 	return true
 }
-
-/*
-func Route(h *resource.Resource, sub chi.Router) {
-
-	sub.Route("/auth", func(r chi.Router) {
-
-		// Use Authentication
-		r.Use(Auth(h))
-
-
-		r.Post(lvsvc.ApiAuthFindHymn, operations.FindHymnBook(h))
-		r.Get(lvsvc.ApiAuthListResources, operations.GetList(h))
-
-		////////////Wrong Http Method
-
-		r.Get(lvsvc.ApiAuthFindHymn, helper.UsePOST(h))
-		r.Post(lvsvc.ApiAuthListResources, helper.UseGET(h))
-
-
-	})
-
-}*/

@@ -80,19 +80,23 @@ func StartConn(conf *Config) {
 		return
 	}
 	conf.URLBuilder = func() string {
-
 		var buffer bytes.Buffer
+		isRemote := conf.Port == "" || conf.Port == "."
+		if isRemote {
+			buffer.WriteString("wss://")
+			buffer.WriteString(conf.Host)
+			buffer.WriteString("/ws/imaxine-that?data=")
+			buffer.WriteString(data)
+		} else {
+			buffer.WriteString("ws://")
+			buffer.WriteString(conf.Host)
+			buffer.WriteString(":")
+			buffer.WriteString(conf.Port)
+			buffer.WriteString("/ws/imaxine-that?data=")
+			buffer.WriteString(data)
+		}
 
-		buffer.WriteString("ws://")
-		buffer.WriteString(conf.Host)
-		buffer.WriteString(":")
-		buffer.WriteString(conf.Port)
-		buffer.WriteString("/ws/imaxine-that?data=")
-		buffer.WriteString(data)
-
-		url := buffer.String()
-
-		return url
+		return buffer.String()
 	}
 
 	connect(conf)

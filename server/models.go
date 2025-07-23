@@ -125,6 +125,16 @@ type Server struct {
 	ErrCh      chan error
 }
 
+// ClientConfig ... Models information used to start the client connection
+type ClientConfig struct {
+	Phone    string `json:"phone"`
+	Host     string `json:"host"`
+	Username string `json:"user_name"`
+	Password string `json:"password"`
+	Port     string `json:"port"`
+	Reg      bool   `json:"reg"`
+}
+
 func (s Server) GetUserManager() *UserMgr {
 	return s.userMgr
 }
