@@ -42,7 +42,7 @@ func main() {
 	var port int
 	var serverIP string
 
-	flag.IntVar(&port, "p", 8080, "The application server will be started on this port")
+	flag.IntVar(&port, "port", 8080, "The application server will be started on this port")
 	flag.StringVar(&serverIP, "h", "localhost", "The MongoDB URL to connect to")
 
 	flag.Parse()
